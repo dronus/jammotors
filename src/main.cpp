@@ -4,6 +4,17 @@
 #include <WiFi.h>
 #include "wifi_config.h" // provides wifiName, wifiSecret
 
+#include "FastAccelStepper.h"
+
+
+#define dirPinStepper 18
+#define enablePinStepper 26
+#define stepPinStepper 17
+
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *stepper = NULL;
+
+
 AsyncWebServer * httpServer;
 
 void setup() 
@@ -59,36 +70,56 @@ void setup()
   });
 */
   httpServer->on("/move", HTTP_GET, [](AsyncWebServerRequest *request) {
-    float speed = 100.f;
-    float accel = 100.f;
-    float decel = 100.f;
-    float distance = 100.f;
+    int speed = 100;
+    int accel = 100;
+    int target = 0;
     if (request->hasParam("speed"))
-      speed = request->getParam("speed")->value().toFloat();
+      speed = request->getParam("speed")->value().toInt();
     if (request->hasParam("accel"))
-      accel = request->getParam("accel")->value().toFloat();
-    if (request->hasParam("decel"))
-      decel = request->getParam("decel")->value().toFloat();
-    if (request->hasParam("distance") )
-      distance = request->getParam("distance")->value().toFloat();
+      accel = request->getParam("accel")->value().toInt();
+    if (request->hasParam("target") )
+      target = request->getParam("target")->value().toInt();
     
     // TODO do move
     Serial.print("MOVE: ");
-    Serial.print(distance);
+    Serial.print(target);
     Serial.print(" ");
     Serial.print(speed);
     Serial.print(" ");
     Serial.print(accel);
-    Serial.print(" ");
-    Serial.print(decel);
     Serial.println(" ");
+
+    stepper->setSpeedInUs(1000000L / speed);  // us/step
+    stepper->setAcceleration(accel);
+    stepper->moveTo(target);
+    
     request->send(204);
+  });
+
+  httpServer->on("/position", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    response->printf("%d\n", stepper->getCurrentPosition());
+    request->send(response);
   });
 
   httpServer->serveStatic("/", SPIFFS, "/");
 
   httpServer->begin();
   Serial.println("Webserver started.");
+
+  engine.init();
+  stepper = engine.stepperConnectToPin(stepPinStepper);
+  if (stepper) {
+    stepper->setDirectionPin(dirPinStepper);
+    // stepper->setEnablePin(enablePinStepper);
+    // stepper->setAutoEnable(true);
+
+    // If auto enable/disable need delays, just add (one or both):
+    // stepper->setDelayToEnable(50);
+    // stepper->setDelayToDisable(1000);
+
+  }
+  Serial.println("Stepper started.");
 }
 
 void loop() 
