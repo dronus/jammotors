@@ -7,9 +7,14 @@
 #include "FastAccelStepper.h"
 
 
-#define dirPinStepper 18
-#define enablePinStepper 26
-#define stepPinStepper 17
+//#define dirPinStepper 18
+//#define enablePinStepper 26
+//#define stepPinStepper 17
+
+#define dirPinStepper 2
+#define enablePinStepper 6
+#define stepPinStepper 4
+
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -108,7 +113,7 @@ void setup()
   Serial.println("Webserver started.");
 
   engine.init();
-  stepper = engine.stepperConnectToPin(stepPinStepper);
+  stepper = engine.stepperConnectToPin(stepPinStepper,1);
   if (stepper) {
     stepper->setDirectionPin(dirPinStepper);
     // stepper->setEnablePin(enablePinStepper);
