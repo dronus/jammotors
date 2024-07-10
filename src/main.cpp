@@ -8,8 +8,8 @@
 #include "FastAccelStepper.h"
 
 #define statusLedPin 2
-#define stepPin 0
-#define dirPin 4
+#define stepPin 4
+#define dirPin 16
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
