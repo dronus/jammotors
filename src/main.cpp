@@ -7,27 +7,20 @@
 
 #include "FastAccelStepper.h"
 
-
-//#define dirPinStepper 18
-//#define enablePinStepper 26
-//#define stepPinStepper 17
-
-#define dirPinStepper 2
-#define enablePinStepper 6
-#define stepPinStepper 4
-
+#define statusLedPin 2
+#define stepPin 0
+#define dirPin 4
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 ArtnetnodeWifi artnetnode;
-
-AsyncWebServer * httpServer;
+AsyncWebServer *httpServer;
 
 void setup() 
 {
+  pinMode(statusLedPin,OUTPUT);
   Serial.begin(115200);
 
-  Serial.println("Checking SPIFFS");
   bool spiffsBeginSuccess = SPIFFS.begin();
   if (!spiffsBeginSuccess)
     Serial.println("SPIFFS cannot be mounted.");
@@ -37,79 +30,49 @@ void setup()
   Serial.println("Connecting WIFi");
   WiFi.begin(wifiName, wifiSecret);
   //ESPServerWifiModeClient
-  int timeoutCounter = 10;
-  while (WiFi.status() != WL_CONNECTED && timeoutCounter > 0)
+  int cycle = 0;
+  while ( WiFi.status() != WL_CONNECTED )
   {
-      delay(500);
       Serial.print(".");
-      if (timeoutCounter == (5 * 2 - 3))
-      {
-          WiFi.reconnect();
+      delay(500);
+      if ( cycle % 10 == 0) {
+        WiFi.reconnect();
+        Serial.println();
       }
-      timeoutCounter--;
+      cycle++;
   }
   Serial.println();
-  if (timeoutCounter > 0)
-  {
-    Serial.print("Connected to network with IP address ");
-    Serial.println(WiFi.localIP().toString().c_str());
-  }
-  else
-  {
-    Serial.print("Connection to WiFi network "); 
-    Serial.print(wifiName);
-    Serial.println("failed with timeout");
-  }
+  Serial.print("connected, IP address: ");
+  Serial.println(WiFi.localIP().toString().c_str());
 
   httpServer = new AsyncWebServer(80);
 
-  // this->restApiHandler->registerRestEndpoints(this->httpServer);
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 
-/*  httpServer->onNotFound([](AsyncWebServerRequest *request) {
-    if (request->method() == HTTP_OPTIONS)
-      request->send(200);
-    else
-      request->send(404, "text/html", "Requested file not found!");
-  });
-*/
-  httpServer->on("/move", HTTP_GET, [](AsyncWebServerRequest *request) {
-    int speed = 50000;
-    int accel = 10000;
-    int target = 0;
+  httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
     if (request->hasParam("speed"))
-      speed = request->getParam("speed")->value().toInt();
+      stepper->setSpeedInHz(request->getParam("speed")->value().toInt());
     if (request->hasParam("accel"))
-      accel = request->getParam("accel")->value().toInt();
+      stepper->setAcceleration(request->getParam("accel")->value().toInt());
     if (request->hasParam("target") )
-      target = request->getParam("target")->value().toInt();
-    
-    // TODO do move
-    Serial.print("MOVE: ");
-    Serial.print(target);
-    Serial.print(" ");
-    Serial.print(speed);
-    Serial.print(" ");
-    Serial.print(accel);
-    Serial.println(" ");
-
-    stepper->setSpeedInUs(1000000L / speed);  // us/step
-    stepper->setAcceleration(accel);
-    stepper->moveTo(target);
-    
+      stepper->moveTo(request->getParam("target")->value().toInt());
     request->send(204);
   });
 
-  httpServer->on("/position", HTTP_GET, [](AsyncWebServerRequest *request) {
+  httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d\n", stepper->getCurrentPosition());
+    response->printf("%d %d %d %d\n", 
+      stepper->targetPos(),
+      stepper->getCurrentPosition(),
+      stepper->getSpeedInMilliHz() / 1000,
+      stepper->getAcceleration()
+    );
+    
     request->send(response);
   });
-
-  httpServer->serveStatic("/", SPIFFS, "/");
-
+  httpServer->serveStatic("/", SPIFFS, "/"); // serve index.html and other files
   httpServer->begin();
   Serial.println("Webserver started.");
 
@@ -120,20 +83,18 @@ void setup()
     stepper->moveTo(target);
   });
   artnetnode.begin();
-
+    Serial.println("ArtNet node started.");
+  
+  // start stepper driver
   engine.init();
-  stepper = engine.stepperConnectToPin(stepPinStepper,1);
+  stepper = engine.stepperConnectToPin(stepPin,1);
   if (stepper) {
-    stepper->setDirectionPin(dirPinStepper);
-    // stepper->setEnablePin(enablePinStepper);
-    // stepper->setAutoEnable(true);
-
-    // If auto enable/disable need delays, just add (one or both):
-    // stepper->setDelayToEnable(50);
-    // stepper->setDelayToDisable(1000);
-
+    stepper->setDirectionPin(dirPin);
+    Serial.println("Stepper started.");
   }
-  Serial.println("Stepper started.");
+
+  // light status led
+  digitalWrite(statusLedPin,HIGH);
 }
 
 void loop() 

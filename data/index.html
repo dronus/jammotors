@@ -1,22 +1,30 @@
 
 
 
-<p>Speed: <input id=speed value="50000"></p>
-<p>Accl: <input id=accel value="10000"></p>
-<p>Target: <input id=target value="0" onchange="move()"></p>
+<p>Speed:    <input id=speed  onchange="set(this)"></p>
+<p>Accel:    <input id=accel  onchange="set(this)"></p>
+<p>Target:   <input id=target onchange="set(this)"></p>
 <p>Position: <input id=position></p>
 
 <script>
-function move() {
-  let speed = document.querySelector('#speed').value;
-  let accel = document.querySelector('#accel').value;
-  let target= document.querySelector('#target').value;
-  fetch("/move?target="+target+"&speed="+speed+"&accel="+accel);
+function set(el) {
+  let param = el.id;
+  fetch(`/set?${param}=${el.value}`);
 }
 
+function show(id, value) {
+  let el = document.getElementById(id);
+  if(el != document.activeElement)
+    el.value = value;
+}
+  
 setInterval(async()=>{
-  let position = parseInt(await(fetch("/position").then(r => r.text())));
-  document.querySelector('#position').value = position;
+  let status = await(fetch("/status").then(r => r.text()));
+  let parts = status.split(' ');
+  show('target'  ,parts[0]);
+  show('position',parts[1]);
+  show('speed'   ,parts[2]);
+  show('accel'   ,parts[3]);
 },500);
 </script>
 
