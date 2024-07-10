@@ -2,6 +2,7 @@
 #include <SPIFFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <ArtnetnodeWifi.h>
 #include "wifi_config.h" // provides wifiName, wifiSecret
 
 #include "FastAccelStepper.h"
@@ -18,7 +19,7 @@
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
-
+ArtnetnodeWifi artnetnode;
 
 AsyncWebServer * httpServer;
 
@@ -75,8 +76,8 @@ void setup()
   });
 */
   httpServer->on("/move", HTTP_GET, [](AsyncWebServerRequest *request) {
-    int speed = 100;
-    int accel = 100;
+    int speed = 50000;
+    int accel = 10000;
     int target = 0;
     if (request->hasParam("speed"))
       speed = request->getParam("speed")->value().toInt();
@@ -112,6 +113,14 @@ void setup()
   httpServer->begin();
   Serial.println("Webserver started.");
 
+  // start ArtnetNode
+  artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
+    uint16_t target = ((uint16_t)data[0]) + (((uint16_t)data[1])<<8);
+    Serial.println(target, DEC);
+    stepper->moveTo(target);
+  });
+  artnetnode.begin();
+
   engine.init();
   stepper = engine.stepperConnectToPin(stepPinStepper,1);
   if (stepper) {
@@ -129,4 +138,5 @@ void setup()
 
 void loop() 
 {
+  artnetnode.read();
 }
