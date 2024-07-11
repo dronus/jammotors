@@ -1,17 +1,19 @@
 
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <ArtnetnodeWifi.h>
 #include "wifi_config.h" // provides wifiName, wifiSecret
-
 #include "FastAccelStepper.h"
+#include <Preferences.h>
+
 
 #define statusLedPin 2
 #define stepPin 17
 #define dirPin  16
 #define dmxChannel 0
 
+Preferences prefs;
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 ArtnetnodeWifi artnetnode;
@@ -22,11 +24,14 @@ void setup()
   pinMode(statusLedPin,OUTPUT);
   Serial.begin(115200);
 
-  bool spiffsBeginSuccess = SPIFFS.begin();
+  bool spiffsBeginSuccess = LittleFS.begin();
   if (!spiffsBeginSuccess)
-    Serial.println("SPIFFS cannot be mounted.");
+    Serial.println("LittleFS cannot be mounted.");
   else
-    Serial.println("SPIFFS started.");
+    Serial.println("LittleFS started.");
+
+  prefs.begin("motor");
+  Serial.println("Prefs started.");
 
   Serial.println("Connecting WIFi");
   WiFi.setHostname("Motor");
@@ -54,12 +59,17 @@ void setup()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 
   httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("speed"))
+    if (request->hasParam("speed")) {
       stepper->setSpeedInHz(request->getParam("speed")->value().toInt());
-    if (request->hasParam("accel"))
+      prefs.putInt("speed", request->getParam("speed")->value().toInt());
+    }
+    if (request->hasParam("accel")) {
       stepper->setAcceleration(request->getParam("accel")->value().toInt());
+      prefs.putInt("accel",    request->getParam("accel")->value().toInt());
+    }
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
+     
     request->send(204);
   });
 
@@ -74,7 +84,7 @@ void setup()
     
     request->send(response);
   });
-  httpServer->serveStatic("/", SPIFFS, "/"); // serve index.html and other files
+  httpServer->serveStatic("/", LittleFS, "/"); // serve index.html and other files
   httpServer->begin();
   Serial.println("Webserver started.");
 
@@ -92,6 +102,9 @@ void setup()
   stepper = engine.stepperConnectToPin(stepPin,1);
   if (stepper) {
     stepper->setDirectionPin(dirPin);
+    stepper->setSpeedInHz   (prefs.getInt("speed",10000));
+    stepper->setAcceleration(prefs.getInt("accel",10000));
+
     Serial.println("Stepper started.");
   }
 
