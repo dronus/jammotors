@@ -1,6 +1,8 @@
 
 
 
+<p>DMX Channel:<input id=channel onchange="set(this)"></p>
+<p>Scale:    <input id=scale  onchange="set(this)"></p>
 <p>Speed:    <input id=speed  onchange="set(this)"></p>
 <p>Accel:    <input id=accel  onchange="set(this)"></p>
 <p>Target:   <input id=target onchange="set(this)"></p>
@@ -21,10 +23,13 @@ function show(id, value) {
 setInterval(async()=>{
   let status = await(fetch("/status").then(r => r.text()));
   let parts = status.split(' ');
-  show('target'  ,parts[0]);
-  show('position',parts[1]);
-  show('speed'   ,parts[2]);
-  show('accel'   ,parts[3]);
+  show('channel' ,parts[0]);
+  show('scale'   ,parts[1]);
+  show('target'  ,parts[2]);
+  show('speed'   ,parts[3]);
+  show('accel'   ,parts[4]);
+  show('position',parts[5]);
+
 },500);
 </script>
 

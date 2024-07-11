@@ -11,13 +11,13 @@
 #define statusLedPin 2
 #define stepPin 17
 #define dirPin  16
-#define dmxChannel 0
 
 Preferences prefs;
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
+int dmxChannel, scale;
 
 void setup() 
 {
@@ -31,6 +31,8 @@ void setup()
     Serial.println("LittleFS started.");
 
   prefs.begin("motor");
+  dmxChannel = prefs.getInt("channel",0);
+  scale = prefs.getInt("scale",1);
   Serial.println("Prefs started.");
 
   Serial.println("Connecting WIFi");
@@ -67,6 +69,15 @@ void setup()
       stepper->setAcceleration(request->getParam("accel")->value().toInt());
       prefs.putInt("accel",    request->getParam("accel")->value().toInt());
     }
+    if (request->hasParam("channel")) {
+      dmxChannel = request->getParam("channel")->value().toInt();
+      prefs.putInt("channel",request->getParam("channel")->value().toInt());
+    }
+    if (request->hasParam("scale")) {
+      scale = request->getParam("scale")->value().toInt();
+      prefs.putInt("scale", request->getParam("scale")->value().toInt());
+    }
+
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
      
@@ -75,11 +86,13 @@ void setup()
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d\n", 
+    response->printf("%d %d %d %d %d %d\n",
+      dmxChannel,
+      scale,
       stepper->targetPos(),
-      stepper->getCurrentPosition(),
       stepper->getSpeedInMilliHz() / 1000,
-      stepper->getAcceleration()
+      stepper->getAcceleration(),
+      stepper->getCurrentPosition()
     );
     
     request->send(response);
@@ -90,7 +103,7 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
-    uint16_t target = ((uint16_t)data[0+dmxChannel]) + (((uint16_t)data[1+dmxChannel])<<8);
+    uint32_t target = scale * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
     Serial.println(target, DEC);
     stepper->moveTo(target);
   });
