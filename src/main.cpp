@@ -8,8 +8,9 @@
 #include "FastAccelStepper.h"
 
 #define statusLedPin 2
-#define stepPin 4
-#define dirPin 16
+#define stepPin 17
+#define dirPin  16
+#define dmxChannel 0
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
@@ -28,6 +29,7 @@ void setup()
     Serial.println("SPIFFS started.");
 
   Serial.println("Connecting WIFi");
+  WiFi.setHostname("Motor");
   WiFi.begin(wifiName, wifiSecret);
   //ESPServerWifiModeClient
   int cycle = 0;
@@ -78,7 +80,7 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
-    uint16_t target = ((uint16_t)data[0]) + (((uint16_t)data[1])<<8);
+    uint16_t target = ((uint16_t)data[0+dmxChannel]) + (((uint16_t)data[1+dmxChannel])<<8);
     Serial.println(target, DEC);
     stepper->moveTo(target);
   });
