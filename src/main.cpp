@@ -11,6 +11,8 @@
 #define statusLedPin 2
 #define stepPin 17
 #define dirPin  16
+#define enablePin 21
+#define alarmPin 22
 
 Preferences prefs;
 FastAccelStepperEngine engine = FastAccelStepperEngine();
@@ -22,6 +24,9 @@ int dmxChannel, scale;
 void setup() 
 {
   pinMode(statusLedPin,OUTPUT);
+  pinMode(enablePin,OUTPUT);
+  digitalWrite(enablePin,HIGH);
+  pinMode(alarmPin,INPUT_PULLUP);
   Serial.begin(115200);
 
   bool spiffsBeginSuccess = LittleFS.begin();
@@ -80,19 +85,23 @@ void setup()
 
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
-     
+
+   if (request->hasParam("enable") )
+      digitalWrite(enablePin, request->getParam("enable")->value().toInt() );
+
     request->send(204);
   });
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d %d %d\n",
+    response->printf("%d %d %d %d %d %d %d\n",
       dmxChannel,
       scale,
       stepper->targetPos(),
       stepper->getSpeedInMilliHz() / 1000,
       stepper->getAcceleration(),
-      stepper->getCurrentPosition()
+      stepper->getCurrentPosition(),
+      digitalRead(alarmPin) ? 0 : 1
     );
     
     request->send(response);

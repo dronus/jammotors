@@ -7,6 +7,8 @@
 <p>Accel:    <input id=accel  onchange="set(this)"></p>
 <p>Target:   <input id=target onchange="set(this)"></p>
 <p>Position: <input id=position></p>
+<p>Enabled:  <input id=enable onchange="set(this)"></p>
+<p>Alarm:    <input id=alarm></p>
 
 <script>
 function set(el) {
@@ -29,7 +31,7 @@ setInterval(async()=>{
   show('speed'   ,parts[3]);
   show('accel'   ,parts[4]);
   show('position',parts[5]);
-
+  show('alarm'   ,parts[6]);
 },500);
 </script>
 
