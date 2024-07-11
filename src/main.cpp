@@ -20,6 +20,7 @@ FastAccelStepper *stepper = NULL;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 int dmxChannel, scale;
+int homing = 0;
 
 void setup() 
 {
@@ -89,7 +90,11 @@ void setup()
    if (request->hasParam("enable") )
       digitalWrite(enablePin, request->getParam("enable")->value().toInt() );
 
-    request->send(204);
+   if (request->hasParam("home") )
+     homing = request->getParam("home")->value().toInt();
+
+   request->send(204);
+
   });
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -101,7 +106,7 @@ void setup()
       stepper->getSpeedInMilliHz() / 1000,
       stepper->getAcceleration(),
       stepper->getCurrentPosition(),
-      digitalRead(alarmPin) ? 0 : 1
+      !digitalRead(alarmPin)
     );
     
     request->send(response);
@@ -112,6 +117,7 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
+    if(dmxChannel + 1 >= length) return;
     uint32_t target = scale * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
     Serial.println(target, DEC);
     stepper->moveTo(target);
@@ -137,4 +143,23 @@ void setup()
 void loop() 
 {
   artnetnode.read();
+
+  if(homing) {
+    // do poor man's "bump" homing
+    // we move slowly towards the specified position, until the driver errors out.
+    // we expect to have hit a hard stop then, and reset the current position to zero.
+    dmxChannel = 255; // illegal channel, to disable dmx temporary
+    stepper->setSpeedInHz(prefs.getInt("speed",10000)/ 10); // slow and careful
+    stepper->moveTo(homing);
+    while(digitalRead(alarmPin)) // wait for alarm to come up
+      delay(10); 
+    digitalWrite(enablePin,0);   // clear the alarm
+    stepper->forceStop(); // stop homing movement
+    delay(500);
+    stepper->setCurrentPosition(0);
+    digitalWrite(enablePin,1);  // alarm is clear, ready to go again.
+    stepper->setSpeedInHz(prefs.getInt("speed",10000)); // restore speed
+    homing = 0;
+    dmxChannel = prefs.getInt("channel",0);
+  }
 }

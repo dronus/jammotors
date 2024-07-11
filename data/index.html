@@ -7,13 +7,17 @@
 <p>Accel:    <input id=accel  onchange="set(this)"></p>
 <p>Target:   <input id=target onchange="set(this)"></p>
 <p>Position: <input id=position></p>
+<p>Homing:   <input id=home onchange="set(this)"></p>
 <p>Enabled:  <input id=enable onchange="set(this)"></p>
 <p>Alarm:    <input id=alarm></p>
+
 
 <script>
 function set(el) {
   let param = el.id;
   fetch(`/set?${param}=${el.value}`);
+  el.blur();
+  el.value = '';
 }
 
 function show(id, value) {
