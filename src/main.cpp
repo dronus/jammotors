@@ -87,6 +87,9 @@ void setup()
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
 
+    if (request->hasParam("set_position") )
+      stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
+
    if (request->hasParam("enable") )
       digitalWrite(enablePin, request->getParam("enable")->value().toInt() );
 
@@ -99,13 +102,14 @@ void setup()
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d %d %d %d\n",
+    response->printf("%d %d %d %d %d %d %d %d\n",
       dmxChannel,
       scale,
       stepper->targetPos(),
       stepper->getSpeedInMilliHz() / 1000,
       stepper->getAcceleration(),
       stepper->getCurrentPosition(),
+      digitalRead(enablePin),
       !digitalRead(alarmPin)
     );
     
