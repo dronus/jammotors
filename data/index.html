@@ -1,16 +1,40 @@
 
 
+<style>
+* { font-family: sans; }
+div {  display: table; margin: 10px; padding: 10px; border-radius: 10px; background-color: rgba(0,0,0,0.2); }
+</style>
 
-<p>DMX Channel:<input id=channel onchange="set(this)"></p>
-<p>Scale:    <input id=scale  onchange="set(this)"></p>
-<p>Speed:    <input id=speed  onchange="set(this)"></p>
-<p>Accel:    <input id=accel  onchange="set(this)"></p>
-<p>Target:   <input id=target onchange="set(this)"></p>
-<p>Position: <input id=position></p>
-<p>Homing:   <input id=home onchange="set(this)"></p>
-<p>Enabled:  <input id=enable onchange="set(this)"></p>
-<p>Alarm:    <input id=alarm></p>
+<div>
+  <h2>Position</h2>
+  <div>
+    Actual: <input id=position disabled>
+    Target:   <input id=target onchange="set(this)">
+  </div>
+  <div>
+    <h3>Enable / Error</h3>
+    Enabled:  <input id=enable onchange="set(this)"> Alarm: <input id=alarm disabled> (reset by disable / enable)
+  </div>
+  <div>
+  <h3>Homing</h3>
+    Home to target: <input id=home onchange="set(this)">
+    Reset position to: <input id=set_position onchange="set(this)">
+  </div>
+</div>
 
+<div>
+  <h2>Config</h2>
+  <div>
+    <h3>ArtNet DMX Input</h3>
+    DMX Channel:<input id=channel onchange="set(this)">
+    DMX Scale:    <input id=scale  onchange="set(this)">
+  </div>
+  <div>
+    <h3>Motion</h3>
+    <p>Speed:    <input id=speed  onchange="set(this)"></p>
+    <p>Accel:    <input id=accel  onchange="set(this)"></p>
+  </div>
+</div>
 
 <script>
 function set(el) {
