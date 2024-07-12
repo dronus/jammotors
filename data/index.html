@@ -42,6 +42,8 @@ function set(el) {
   fetch(`/set?${param}=${el.value}`);
   el.blur();
   el.value = '';
+
+  update_config();
 }
 
 function show(id, value) {
@@ -51,16 +53,23 @@ function show(id, value) {
 }
   
 setInterval(async()=>{
-  let status = await(fetch("/status").then(r => r.text()));
-  let parts = status.split(' ');
+  let body = await(fetch("/status").then(r => r.text()));
+  let parts = body.split(' ');
+  show('target'  ,parts[0]);
+  show('position',parts[1]);
+  show('enable'  ,parts[2]);
+  show('alarm'   ,parts[3]);
+},500);
+
+async function update_config(){
+  let body = await(fetch("/config").then(r => r.text()));
+  let parts = body.split(' ');
   show('channel' ,parts[0]);
   show('scale'   ,parts[1]);
-  show('target'  ,parts[2]);
-  show('speed'   ,parts[3]);
-  show('accel'   ,parts[4]);
-  show('position',parts[5]);
-  show('enable'  ,parts[6]);
-  show('alarm'   ,parts[7]);
-},500);
+  show('speed'   ,parts[2]);
+  show('accel'   ,parts[3]);
+};
+
+update_config();
 </script>
 

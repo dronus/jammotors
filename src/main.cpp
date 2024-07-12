@@ -102,12 +102,8 @@ void setup()
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d %d %d %d %d\n",
-      dmxChannel,
-      scale,
+    response->printf("%d %d %d %d\n",
       stepper->targetPos(),
-      stepper->getSpeedInMilliHz() / 1000,
-      stepper->getAcceleration(),
       stepper->getCurrentPosition(),
       digitalRead(enablePin),
       !digitalRead(alarmPin)
@@ -115,6 +111,20 @@ void setup()
     
     request->send(response);
   });
+
+  httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    response->printf("%d %d %d %d\n",
+      dmxChannel,
+      scale,
+      stepper->getSpeedInMilliHz() / 1000,
+      stepper->getAcceleration()
+    );
+    
+    request->send(response);
+  });
+
+
   httpServer->serveStatic("/", LittleFS, "/"); // serve index.html and other files
   httpServer->begin();
   Serial.println("Webserver started.");
