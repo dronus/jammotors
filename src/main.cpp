@@ -9,8 +9,8 @@
 
 
 #define statusLedPin 2
-#define stepPin 17
-#define dirPin  16
+#define stepPin 16
+#define dirPin  17
 #define enablePin 21
 #define alarmPin 22
 
