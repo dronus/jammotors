@@ -102,24 +102,19 @@ void setup()
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d\n",
-      stepper->targetPos(),
-      stepper->getCurrentPosition(),
-      digitalRead(enablePin),
-      !digitalRead(alarmPin)
-    );
-    
+    response->printf("%s %d\n","target",stepper->targetPos());
+    response->printf("%s %d\n","position",stepper->getCurrentPosition());
+    response->printf("%s %d\n","enable",digitalRead(enablePin));
+    response->printf("%s %d\n","alarm",!digitalRead(alarmPin));
     request->send(response);
   });
 
   httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%d %d %d %d\n",
-      dmxChannel,
-      scale,
-      stepper->getSpeedInMilliHz() / 1000,
-      stepper->getAcceleration()
-    );
+    response->printf("%s %d\n","channel",dmxChannel);
+    response->printf("%s %d\n","scale",scale);
+    response->printf("%s %d\n","speed",stepper->getSpeedInMilliHz() / 1000);
+    response->printf("%s %d\n","accel",stepper->getAcceleration());
     
     request->send(response);
   });

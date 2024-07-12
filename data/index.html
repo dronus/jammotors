@@ -43,7 +43,7 @@ function set(el) {
   el.blur();
   el.value = '';
 
-  update_config();
+  fetch_and_show("/config");
 }
 
 function show(id, value) {
@@ -51,25 +51,20 @@ function show(id, value) {
   if(el != document.activeElement)
     el.value = value;
 }
-  
-setInterval(async()=>{
-  let body = await(fetch("/status").then(r => r.text()));
-  let parts = body.split(' ');
-  show('target'  ,parts[0]);
-  show('position',parts[1]);
-  show('enable'  ,parts[2]);
-  show('alarm'   ,parts[3]);
-},500);
 
-async function update_config(){
-  let body = await(fetch("/config").then(r => r.text()));
-  let parts = body.split(' ');
-  show('channel' ,parts[0]);
-  show('scale'   ,parts[1]);
-  show('speed'   ,parts[2]);
-  show('accel'   ,parts[3]);
-};
+async function fetch_and_show(url) {
+  let body = await(fetch(url).then(r => r.text()));
+  let lines = body.split('\n');
+  for(let line of lines) {
+    let parts = line.split(/ (.*)/s); // split on first " " only
+    if(parts[0])
+      show(parts[0],parts[1]);
+  }
+}
 
-update_config();
+setInterval(()=>fetch_and_show("/status"),500);
+
+fetch_and_show("/config");
+
 </script>
 
