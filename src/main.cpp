@@ -24,10 +24,42 @@ ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 DNSServer dnsServer;
 
-int dmxChannel, scale;
+bool dmx_enabled = true;
 int homing = 0;
 
+
+struct Param {
+  enum ParamType {INT, STRING} type;
+  const char* name;
+  void (*apply)(Param&) = NULL;
+
+  Param(ParamType _type, const char* _name, void(*_apply)(Param&) = NULL) : type(_type), name(_name),apply(_apply) {};
+
+  void trySet(AsyncWebServerRequest* request) {
+    if(! request->hasParam(name) ) return;
+    if(type == INT)
+      prefs.putInt(name, request->getParam(name)->value().toInt());
+    else if(type == STRING)
+      prefs.putString(name, request->getParam(name)->value());
+    if(apply != NULL)
+      (*apply)(*this);
+  }
+};
+
+Param params[] = {
+  {Param::INT, "speed", [](Param& p) { stepper->setSpeedInHz(prefs.getInt(p.name)); }},
+  {Param::INT, "accel", [](Param& p) { stepper->setAcceleration(prefs.getInt(p.name)); }},
+  {Param::INT, "channel" },
+  {Param::INT, "scale" },
+  {Param::STRING, "ssid" },
+  {Param::STRING, "psk" }
+};
+
+
 void switchWifiAp() {
+  // provide a WiFi AP with an captive portal page.
+  // this allows configuration of WiFi credentials in case the 
+  // configured one is unavailable.
   Serial.println("Switching WiFi to AP mode.");
   WiFi.softAP("Motor", "motorkraft3000");
   Serial.println("Starting DNS (Captive Portal)");
@@ -52,8 +84,7 @@ void setup()
     Serial.println("LittleFS started.");
 
   prefs.begin("motor");
-  dmxChannel = prefs.getInt("channel",0);
-  scale = prefs.getInt("scale",1);
+
   Serial.println("Prefs started.");
 
   Serial.println("Connecting WIFi");
@@ -117,23 +148,10 @@ void setup()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 
   httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
-    if (request->hasParam("speed")) {
-      stepper->setSpeedInHz(request->getParam("speed")->value().toInt());
-      prefs.putInt("speed", request->getParam("speed")->value().toInt());
-    }
-    if (request->hasParam("accel")) {
-      stepper->setAcceleration(request->getParam("accel")->value().toInt());
-      prefs.putInt("accel",    request->getParam("accel")->value().toInt());
-    }
-    if (request->hasParam("channel")) {
-      dmxChannel = request->getParam("channel")->value().toInt();
-      prefs.putInt("channel",request->getParam("channel")->value().toInt());
-    }
-    if (request->hasParam("scale")) {
-      scale = request->getParam("scale")->value().toInt();
-      prefs.putInt("scale", request->getParam("scale")->value().toInt());
-    }
 
+    for(Param& p : params)
+      p.trySet(request);
+    
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
 
@@ -145,12 +163,6 @@ void setup()
 
    if (request->hasParam("home") )
      homing = request->getParam("home")->value().toInt();
-
-   if (request->hasParam("ssid") )
-      prefs.putString("ssid", request->getParam("ssid")->value());
-
-   if (request->hasParam("psk") )
-      prefs.putString("psk", request->getParam("psk")->value());
 
    request->send(204);
 
@@ -170,16 +182,13 @@ void setup()
 
   httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%s %d\n","channel",dmxChannel);
-    response->printf("%s %d\n","scale",scale);
-    response->printf("%s %d\n","speed",stepper->getSpeedInMilliHz() / 1000);
-    response->printf("%s %d\n","accel",stepper->getAcceleration());
-    response->printf("%s %s\n","ssid",prefs.getString("ssid").c_str());
-    response->printf("%s %s\n","psk", prefs.getString("psk").c_str());
-    
+    for(Param& p : params)
+      if(p.type == Param::INT)
+        response->printf("%s %d\n",p.name,prefs.getInt(p.name));
+      else if(p.type == Param::STRING)
+        response->printf("%s %s\n",p.name, prefs.getString(p.name).c_str());
     request->send(response);
   });
-
 
   httpServer->serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
   httpServer->begin();
@@ -187,8 +196,10 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
+    if(!dmx_enabled) return;
+    uint8_t dmxChannel = prefs.getInt("channel");
     if(dmxChannel + 1 >= length) return;
-    uint32_t target = scale * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
+    uint32_t target = prefs.getInt("scale") * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
     Serial.println(target, DEC);
     stepper->moveTo(target);
   });
@@ -218,7 +229,7 @@ void loop()
     // do poor man's "bump" homing
     // we move slowly towards the specified position, until the driver errors out.
     // we expect to have hit a hard stop then, and reset the current position to zero.
-    dmxChannel = 255; // illegal channel, to disable dmx temporary
+    dmx_enabled = false;
     stepper->setSpeedInHz(prefs.getInt("speed",10000)/ 10); // slow and careful
     stepper->moveTo(homing);
     while(digitalRead(alarmPin)) // wait for alarm to come up
@@ -230,7 +241,7 @@ void loop()
     digitalWrite(enablePin,1);  // alarm is clear, ready to go again.
     stepper->setSpeedInHz(prefs.getInt("speed",10000)); // restore speed
     homing = 0;
-    dmxChannel = prefs.getInt("channel",0);
+    dmx_enabled = true;
   }
 
   ArduinoOTA.handle();
