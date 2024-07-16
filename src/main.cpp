@@ -2,11 +2,13 @@
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ArtnetnodeWifi.h>
 #include "wifi_config.h" // provides wifiName, wifiSecret
 #include "FastAccelStepper.h"
 #include <Preferences.h>
+
 
 
 #define statusLedPin 2
@@ -20,8 +22,20 @@ FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper *stepper = NULL;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
+DNSServer dnsServer;
+
 int dmxChannel, scale;
 int homing = 0;
+
+void switchWifiAp() {
+  Serial.println("Switching WiFi to AP mode.");
+  WiFi.softAP("Motor", "motorkraft3000");
+  Serial.println("Starting DNS (Captive Portal)");
+  dnsServer.start(53, "*", WiFi.softAPIP());
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.setTTL(300);
+  dnsServer.start(53, "*", WiFi.softAPIP());
+}
 
 void setup() 
 {
@@ -44,16 +58,20 @@ void setup()
 
   Serial.println("Connecting WIFi");
   WiFi.setHostname("Motor");
-  WiFi.begin(wifiName, wifiSecret);
+  WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
   //ESPServerWifiModeClient
-  int cycle = 0;
+  int cycle = 1;
   while ( WiFi.status() != WL_CONNECTED )
   {
       Serial.print(".");
       delay(500);
       if ( cycle % 10 == 0) {
-        WiFi.reconnect();
+        //WiFi.reconnect();
         Serial.println();
+      }
+      if (cycle >= 10) {
+        switchWifiAp();
+        break;
       }
       cycle++;
   }
@@ -128,7 +146,16 @@ void setup()
    if (request->hasParam("home") )
      homing = request->getParam("home")->value().toInt();
 
+   if (request->hasParam("ssid") )
+      prefs.putString("ssid", request->getParam("ssid")->value());
+
+   if (request->hasParam("psk") )
+      prefs.putString("psk", request->getParam("psk")->value());
+
    request->send(204);
+
+   if (request->hasParam("reset") )
+     ESP.restart();
 
   });
 
@@ -147,12 +174,14 @@ void setup()
     response->printf("%s %d\n","scale",scale);
     response->printf("%s %d\n","speed",stepper->getSpeedInMilliHz() / 1000);
     response->printf("%s %d\n","accel",stepper->getAcceleration());
+    response->printf("%s %s\n","ssid",prefs.getString("ssid").c_str());
+    response->printf("%s %s\n","psk", prefs.getString("psk").c_str());
     
     request->send(response);
   });
 
 
-  httpServer->serveStatic("/", LittleFS, "/"); // serve index.html and other files
+  httpServer->serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
   httpServer->begin();
   Serial.println("Webserver started.");
 
@@ -164,8 +193,8 @@ void setup()
     stepper->moveTo(target);
   });
   artnetnode.begin();
-    Serial.println("ArtNet node started.");
-  
+  Serial.println("ArtNet node started.");
+
   // start stepper driver
   engine.init();
   stepper = engine.stepperConnectToPin(stepPin,1);
@@ -205,4 +234,5 @@ void loop()
   }
 
   ArduinoOTA.handle();
+  dnsServer.processNextRequest();
 }

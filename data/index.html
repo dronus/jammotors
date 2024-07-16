@@ -3,6 +3,7 @@
 <style>
 * { font-family: sans; }
 div {  display: table; margin: 10px; padding: 10px; border-radius: 10px; background-color: rgba(0,0,0,0.2); }
+input, button {margin: 5px}
 </style>
 
 <div>
@@ -25,14 +26,19 @@ div {  display: table; margin: 10px; padding: 10px; border-radius: 10px; backgro
 <div>
   <h2>Config</h2>
   <div>
+    WiFi SSID:<input id=ssid onchange="set(this)">
+    WiFi PSK: <input type=password id=psk  onchange="set(this)">
+    <button id=reset onclick="set(this)">connect</button>
+  </div>
+  <div>
     <h3>ArtNet DMX Input</h3>
     DMX Channel:<input id=channel onchange="set(this)">
     DMX Scale:    <input id=scale  onchange="set(this)">
   </div>
   <div>
     <h3>Motion</h3>
-    <p>Speed:    <input id=speed  onchange="set(this)"></p>
-    <p>Accel:    <input id=accel  onchange="set(this)"></p>
+    Speed:    <input id=speed  onchange="set(this)">
+    Accel:    <input id=accel  onchange="set(this)">
   </div>
 </div>
 
