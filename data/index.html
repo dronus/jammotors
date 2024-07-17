@@ -26,6 +26,7 @@ input, button {margin: 5px}
 <div>
   <h2>Config</h2>
   <div>
+    Name: <input id=name onchange="set(this)">
     WiFi SSID:<input id=ssid onchange="set(this)">
     WiFi PSK: <input type=password id=psk  onchange="set(this)">
     <button id=reset onclick="set(this)">connect</button>

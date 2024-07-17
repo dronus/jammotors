@@ -5,7 +5,6 @@
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ArtnetnodeWifi.h>
-#include "wifi_config.h" // provides wifiName, wifiSecret
 #include "FastAccelStepper.h"
 #include <Preferences.h>
 
@@ -51,6 +50,7 @@ Param params[] = {
   {Param::INT, "accel", [](Param& p) { stepper->setAcceleration(prefs.getInt(p.name)); }},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
+  {Param::STRING, "name" },
   {Param::STRING, "ssid" },
   {Param::STRING, "psk" }
 };
@@ -63,7 +63,6 @@ void switchWifiAp() {
   Serial.println("Switching WiFi to AP mode.");
   WiFi.softAP("Motor", "motorkraft3000");
   Serial.println("Starting DNS (Captive Portal)");
-  dnsServer.start(53, "*", WiFi.softAPIP());
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
   dnsServer.start(53, "*", WiFi.softAPIP());
@@ -76,6 +75,7 @@ void setup()
   digitalWrite(enablePin,HIGH);
   pinMode(alarmPin,INPUT_PULLUP);
   Serial.begin(115200);
+  Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
 
   bool spiffsBeginSuccess = LittleFS.begin();
   if (!spiffsBeginSuccess)
@@ -84,11 +84,10 @@ void setup()
     Serial.println("LittleFS started.");
 
   prefs.begin("motor");
-
   Serial.println("Prefs started.");
 
   Serial.println("Connecting WIFi");
-  WiFi.setHostname("Motor");
+  WiFi.setHostname(prefs.getString("name","Motor").c_str());
   WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
   //ESPServerWifiModeClient
   int cycle = 1;
@@ -110,35 +109,9 @@ void setup()
   Serial.print("connected, IP address: ");
   Serial.println(WiFi.localIP().toString().c_str());
 
-  ArduinoOTA
-    .onStart([]() {
-      if (ArduinoOTA.getCommand() == U_FLASH) {
-        Serial.println("Start updating sketch");
-      } else {  // U_SPIFFS
-        Serial.println("Start updating files");
-      }
-    })
-    .onEnd([]() {
-      Serial.println("\nEnd");
-    })
-    .onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    })
-    .onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) {
-        Serial.println("Auth Failed");
-      } else if (error == OTA_BEGIN_ERROR) {
-        Serial.println("Begin Failed");
-      } else if (error == OTA_CONNECT_ERROR) {
-        Serial.println("Connect Failed");
-      } else if (error == OTA_RECEIVE_ERROR) {
-        Serial.println("Receive Failed");
-      } else if (error == OTA_END_ERROR) {
-        Serial.println("End Failed");
-      }
-    });
-
+  Serial.println("Start OTA receiver.");
+  ArduinoOTA.onStart([]()                  { Serial.println("OTA Start updating"   );});
+  ArduinoOTA.onError([](ota_error_t error) { Serial.printf("OTA Error[%u]: ", error);});
   ArduinoOTA.begin();
 
   httpServer = new AsyncWebServer(80);
@@ -149,26 +122,23 @@ void setup()
 
   httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
 
+    request->send(204);
+
+    // handle persistent preferences
     for(Param& p : params)
       p.trySet(request);
     
+    // handle instantaneous commands
     if (request->hasParam("target") )
       stepper->moveTo(request->getParam("target")->value().toInt());
-
     if (request->hasParam("set_position") )
       stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
-
-   if (request->hasParam("enable") )
+    if (request->hasParam("enable") )
       digitalWrite(enablePin, request->getParam("enable")->value().toInt() );
-
-   if (request->hasParam("home") )
-     homing = request->getParam("home")->value().toInt();
-
-   request->send(204);
-
-   if (request->hasParam("reset") )
-     ESP.restart();
-
+    if (request->hasParam("home") )
+      homing = request->getParam("home")->value().toInt();
+    if (request->hasParam("reset") )
+      ESP.restart();
   });
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -223,6 +193,9 @@ void setup()
 
 void loop() 
 {
+  ArduinoOTA.handle();
+  if(WiFi.getMode() == WIFI_MODE_AP)
+    dnsServer.processNextRequest();
   artnetnode.read();
 
   if(homing) {
@@ -243,7 +216,4 @@ void loop()
     homing = 0;
     dmx_enabled = true;
   }
-
-  ArduinoOTA.handle();
-  dnsServer.processNextRequest();
 }
