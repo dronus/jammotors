@@ -61,7 +61,7 @@ void switchWifiAp() {
   // this allows configuration of WiFi credentials in case the 
   // configured one is unavailable.
   Serial.println("Switching WiFi to AP mode.");
-  WiFi.softAP("Motor", "motorkraft3000");
+  WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
