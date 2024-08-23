@@ -46,6 +46,7 @@ struct Param {
 };
 
 Param params[] = {
+  {Param::INT, "poweron_enable" },
   {Param::INT, "speed", [](Param& p) { stepper->setSpeedInHz(prefs.getInt(p.name)); }},
   {Param::INT, "accel", [](Param& p) { stepper->setAcceleration(prefs.getInt(p.name)); }},
   {Param::INT, "channel" },
@@ -72,7 +73,6 @@ void setup()
 {
   pinMode(statusLedPin,OUTPUT);
   pinMode(enablePin,OUTPUT);
-  digitalWrite(enablePin,HIGH);
   pinMode(alarmPin,INPUT_PULLUP);
   Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
@@ -185,6 +185,8 @@ void setup()
     stepper->setAcceleration(prefs.getInt("accel",10000));
 
     Serial.println("Stepper started.");
+
+    digitalWrite(enablePin,prefs.getInt("poweron_enable",0));
   }
 
   // light status led
