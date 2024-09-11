@@ -51,6 +51,11 @@ Param params[] = {
   {Param::INT, "accel", [](Param& p) { stepper->setAcceleration(prefs.getInt(p.name)); }},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
+  {Param::INT, "osc_f" },
+  {Param::INT, "osc_a" },
+  {Param::INT, "random_d" },
+  {Param::INT, "random_rd" },
+  {Param::INT, "random_a" },
   {Param::STRING, "name" },
   {Param::STRING, "ssid" },
   {Param::STRING, "psk" }
@@ -68,6 +73,9 @@ void switchWifiAp() {
   dnsServer.setTTL(300);
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
+
+uint32_t manual_target=0;
+uint32_t artnet_target=0;
 
 // set external pin handler
 // as default FastAccelStepper interrupt handling collides
@@ -141,7 +149,7 @@ void setup()
     
     // handle instantaneous commands
     if (request->hasParam("target") )
-      stepper->moveTo(request->getParam("target")->value().toInt());
+      manual_target = request->getParam("target")->value().toInt();
     if (request->hasParam("set_position") )
       stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
     if (request->hasParam("enable") )
@@ -180,9 +188,7 @@ void setup()
     if(!dmx_enabled) return;
     uint8_t dmxChannel = prefs.getInt("channel");
     if(dmxChannel + 1 >= length) return;
-    uint32_t target = prefs.getInt("scale") * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
-    Serial.println(target, DEC);
-    stepper->moveTo(target);
+    artnet_target = prefs.getInt("scale") * ( ((uint32_t)data[0+dmxChannel]) + (((uint32_t)data[1+dmxChannel])<<8) );
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
@@ -206,12 +212,45 @@ void setup()
   digitalWrite(statusLedPin,HIGH);
 }
 
+uint32_t last_time;
+float osc_phase = 0;
+int32_t random_countdown = 0;
+int32_t random_target = 0;
+
 void loop() 
 {
   ArduinoOTA.handle();
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
   artnetnode.read();
+
+  // compute delta time
+  uint32_t time = millis();
+  uint32_t dt = time - last_time;
+  last_time = time;
+
+  // compute and set motion target
+  // set manual target (offset)
+  int32_t target = manual_target;
+
+  // add artnet commanded target
+  target += artnet_target;
+ 
+  // add oscillatory movement 
+  osc_phase += prefs.getInt("osc_f") / 1000.f * ( dt * 2.f * 3.14159f / 1000.f );
+  target += floor( prefs.getInt("osc_a") * sin(osc_phase) );
+  
+  // add random movement
+  random_countdown -= dt;
+  if(random_countdown < 0) {
+    random_target    = random(prefs.getInt("random_a"));
+    random_countdown = prefs.getInt("random_d") + random(prefs.getInt("random_rd"));
+  }
+  target += random_target;
+
+  // execute move
+  stepper->moveTo(target);
+
 
   if(homing) {
     // do poor man's "bump" homing
@@ -231,4 +270,6 @@ void loop()
     homing = 0;
     dmx_enabled = true;
   }
+  
+  delay(1);
 }

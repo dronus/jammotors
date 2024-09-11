@@ -28,10 +28,19 @@ input, button {margin: 5px}
 <div>
   <h2>Config</h2>
   <div>
-    Name: <input id=name onchange="set(this)">
-    WiFi SSID:<input id=ssid onchange="set(this)">
-    WiFi PSK: <input type=password id=psk  onchange="set(this)">
-    <button id=reset onclick="set(this)">connect</button>
+    <h3>Preset Motion</h3>
+    <h4>Oscillate</h4> 
+    Frequency: <input id=osc_f  onchange="set(this)">
+    Amplitude: <input id=osc_a onchange="set(this)">
+    <h4>Random</h4>
+    Static delay: <input id=random_d  onchange="set(this)">
+    Random delay: <input id=random_rd onchange="set(this)">
+    Amplitude:    <input id=random_a  onchange="set(this)">
+  </div>
+  <div>
+    <h3>Motion Limits</h3>
+    Speed:    <input id=speed  onchange="set(this)">
+    Accel:    <input id=accel  onchange="set(this)">
   </div>
   <div>
     <h3>ArtNet DMX Input</h3>
@@ -39,9 +48,10 @@ input, button {margin: 5px}
     DMX Scale:    <input id=scale  onchange="set(this)">
   </div>
   <div>
-    <h3>Motion</h3>
-    Speed:    <input id=speed  onchange="set(this)">
-    Accel:    <input id=accel  onchange="set(this)">
+    Name: <input id=name onchange="set(this)">
+    WiFi SSID:<input id=ssid onchange="set(this)">
+    WiFi PSK: <input type=password id=psk  onchange="set(this)">
+    <button id=reset onclick="set(this)">connect</button>
   </div>
 </div>
 
