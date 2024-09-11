@@ -69,6 +69,17 @@ void switchWifiAp() {
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
 
+// set external pin handler
+// as default FastAccelStepper interrupt handling collides
+// with flash read/write used by Prefs etc.
+bool setExternalPin(uint8_t pin, uint8_t value) {
+  pin = pin & ~PIN_EXTERNAL_FLAG;
+  pinMode(pin, OUTPUT);
+  bool oldValue = digitalRead(pin);
+  digitalWrite(pin, value);
+  return oldValue;
+}
+
 void setup() 
 {
   pinMode(statusLedPin,OUTPUT);
@@ -178,9 +189,11 @@ void setup()
 
   // start stepper driver
   engine.init();
-  stepper = engine.stepperConnectToPin(stepPin,1);
+  stepper = engine.stepperConnectToPin(stepPin,DRIVER_MCPWM_PCNT);
   if (stepper) {
-    stepper->setDirectionPin(dirPin);
+    stepper->setDirectionPin( dirPin + PIN_EXTERNAL_FLAG ); // use external pin handler
+    engine.setExternalCallForPin(setExternalPin);
+
     stepper->setSpeedInHz   (prefs.getInt("speed",10000));
     stepper->setAcceleration(prefs.getInt("accel",10000));
 
