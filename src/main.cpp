@@ -107,7 +107,10 @@ void setup()
 
   Serial.println("Connecting WIFi");
   WiFi.setHostname(prefs.getString("name","Motor").c_str());
-  WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
+  if(prefs.getString("psk","")=="")
+    WiFi.begin(prefs.getString("ssid"));
+  else
+    WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
   //ESPServerWifiModeClient
   int cycle = 1;
   while ( WiFi.status() != WL_CONNECTED )
@@ -237,7 +240,7 @@ void loop()
   target += artnet_target;
  
   // add oscillatory movement 
-  osc_phase += prefs.getInt("osc_f") / 1000.f * ( dt * 2.f * 3.14159f / 1000.f );
+  osc_phase += prefs.getInt("osc_f") * dt * 2.f * 3.14159f / 1000.f / 1000.f;
   target += floor( prefs.getInt("osc_a") * sin(osc_phase) );
   
   // add random movement
