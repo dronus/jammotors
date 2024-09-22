@@ -241,6 +241,7 @@ void loop()
  
   // add oscillatory movement 
   osc_phase += prefs.getInt("osc_f") * dt * 2.f * 3.14159f / 1000.f / 1000.f;
+  osc_phase = fmod(osc_phase, ((float)PI * 2.f));
   target += floor( prefs.getInt("osc_a") * sin(osc_phase) );
   
   // add random movement
