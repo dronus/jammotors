@@ -5,27 +5,27 @@
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ArtnetnodeWifi.h>
-#include "FastAccelStepper.h"
+#include "driver/twai.h"
+#include "xiaomi_cybergear_driver.h"
 #include <Preferences.h>
 
 
-
 #define statusLedPin 2
-#define stepPin 16
-#define dirPin  17
-#define enablePin 21
-#define alarmPin 22
+#define RX_PIN 4
+#define TX_PIN 5
+uint8_t CYBERGEAR_CAN_ID = 0x7F;
+uint8_t MASTER_CAN_ID = 0x00;
 
 Preferences prefs;
-FastAccelStepperEngine engine = FastAccelStepperEngine();
-FastAccelStepper *stepper = NULL;
+XiaomiCyberGearDriver cybergear = XiaomiCyberGearDriver(CYBERGEAR_CAN_ID, MASTER_CAN_ID);
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 DNSServer dnsServer;
 
 bool dmx_enabled = true;
 int homing = 0;
-
+int enabled=0;
+int32_t target = 0;
 
 struct Param {
   enum ParamType {INT, STRING} type;
@@ -47,8 +47,8 @@ struct Param {
 
 Param params[] = {
   {Param::INT, "poweron_enable" },
-  {Param::INT, "speed", [](Param& p) { stepper->setSpeedInHz(prefs.getInt(p.name)); }},
-  {Param::INT, "accel", [](Param& p) { stepper->setAcceleration(prefs.getInt(p.name)); }},
+  {Param::INT, "speed", [](Param& p) { cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
+  {Param::INT, "accel", [](Param& p) { cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); }},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
   {Param::INT, "osc_f" },
@@ -68,6 +68,7 @@ void switchWifiAp() {
   // configured one is unavailable.
   Serial.println("Switching WiFi to AP mode.");
   WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
+  Serial.print(WiFi.softAPIP());
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
@@ -77,23 +78,64 @@ void switchWifiAp() {
 uint32_t manual_target=0;
 uint32_t artnet_target=0;
 
-// set external pin handler
-// as default FastAccelStepper interrupt handling collides
-// with flash read/write used by Prefs etc.
-bool setExternalPin(uint8_t pin, uint8_t value) {
-  pin = pin & ~PIN_EXTERNAL_FLAG;
-  pinMode(pin, OUTPUT);
-  bool oldValue = digitalRead(pin);
-  digitalWrite(pin, value);
-  return oldValue;
+static void handle_rx_message(twai_message_t& message) {
+  if (((message.identifier & 0xFF00) >> 8) == CYBERGEAR_CAN_ID){
+    cybergear.process_message(message);
+  }
 }
+
+static void check_alerts(){
+  // Check if alert happened
+  uint32_t alerts_triggered;
+  twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(1000));
+  twai_status_info_t twai_status;
+  twai_get_status_info(&twai_status);
+
+  // Handle alerts
+  if (alerts_triggered & TWAI_ALERT_ERR_PASS) {
+    Serial.println("Alert: TWAI controller has become error passive.");
+  }
+  if (alerts_triggered & TWAI_ALERT_BUS_ERROR) {
+    Serial.println("Alert: A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus.");
+    Serial.printf("Bus error count: %d\n", twai_status.bus_error_count);
+  }
+  if (alerts_triggered & TWAI_ALERT_TX_FAILED) {
+    Serial.println("Alert: The Transmission failed.");
+    Serial.printf("TX buffered: %d\t", twai_status.msgs_to_tx);
+    Serial.printf("TX error: %d\t", twai_status.tx_error_counter);
+    Serial.printf("TX failed: %d\n", twai_status.tx_failed_count);
+  }
+  // if (alerts_triggered & TWAI_ALERT_TX_SUCCESS) {
+  //   Serial.println("Alert: The Transmission was successful.");
+  //   Serial.printf("TX buffered: %d\t", twai_status.msgs_to_tx);
+  // }
+
+  // Check if message is received
+  if (alerts_triggered & TWAI_ALERT_RX_DATA) {
+    twai_message_t message;
+    while (twai_receive(&message, 0) == ESP_OK) {
+      handle_rx_message(message);
+    }
+  }
+}
+
+
 
 void setup() 
 {
   pinMode(statusLedPin,OUTPUT);
-  pinMode(enablePin,OUTPUT);
-  pinMode(alarmPin,INPUT_PULLUP);
-  Serial.begin(115200);
+
+  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
+  cybergear.init_motor(MODE_POSITION);
+  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
+  cybergear.set_limit_current(prefs.getInt("poweron_enable",0) * prefs.getInt("accel",10000)/1000.f);
+  cybergear.set_speed_kp(0.1f);
+  cybergear.enable_motor(); /* turn on the motor */
+  cybergear.set_position_ref(0.0); /* set initial rotor position */
+  Serial.println("Cybergear started.");
+
+
+//  Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
 
   bool spiffsBeginSuccess = LittleFS.begin();
@@ -104,6 +146,9 @@ void setup()
 
   prefs.begin("motor");
   Serial.println("Prefs started.");
+
+  // reset WiFi credentials
+  // prefs.putString("ssid","nf-9G"), prefs.putString("psk","brunxxer");
 
   Serial.println("Connecting WIFi");
   WiFi.setHostname(prefs.getString("name","Motor").c_str());
@@ -149,26 +194,28 @@ void setup()
     // handle persistent preferences
     for(Param& p : params)
       p.trySet(request);
-    
+
     // handle instantaneous commands
     if (request->hasParam("target") )
       manual_target = request->getParam("target")->value().toInt();
-    if (request->hasParam("set_position") )
-      stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
+    //if (request->hasParam("set_position") )
+    //  stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
     if (request->hasParam("enable") )
-      digitalWrite(enablePin, request->getParam("enable")->value().toInt() );
+      enabled = request->getParam("enable")->value().toInt();
     if (request->hasParam("home") )
       homing = request->getParam("home")->value().toInt();
     if (request->hasParam("reset") )
       ESP.restart();
+
+    cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); 
   });
 
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    response->printf("%s %d\n","target",stepper->targetPos());
-    response->printf("%s %d\n","position",stepper->getCurrentPosition());
-    response->printf("%s %d\n","enable",digitalRead(enablePin));
-    response->printf("%s %d\n","alarm",!digitalRead(alarmPin));
+    response->printf("%s %d\n","target",target);
+    response->printf("%s %d\n","position",(int32_t)round(cybergear.get_status().position*1000.f));
+    response->printf("%s %d\n","enable",enabled);
+    response->printf("%s %d\n","alarm",0);
     request->send(response);
   });
 
@@ -195,25 +242,11 @@ void setup()
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
-
-  // start stepper driver
-  engine.init();
-  stepper = engine.stepperConnectToPin(stepPin,DRIVER_MCPWM_PCNT);
-  if (stepper) {
-    stepper->setDirectionPin( dirPin + PIN_EXTERNAL_FLAG ); // use external pin handler
-    engine.setExternalCallForPin(setExternalPin);
-
-    stepper->setSpeedInHz   (prefs.getInt("speed",10000));
-    stepper->setAcceleration(prefs.getInt("accel",10000));
-
-    Serial.println("Stepper started.");
-
-    digitalWrite(enablePin,prefs.getInt("poweron_enable",0));
-  }
-
+ 
   // light status led
   digitalWrite(statusLedPin,HIGH);
 }
+
 
 uint32_t last_time;
 float osc_phase = 0;
@@ -234,7 +267,7 @@ void loop()
 
   // compute and set motion target
   // set manual target (offset)
-  int32_t target = manual_target;
+  target = manual_target;
 
   // add artnet commanded target
   target += artnet_target;
@@ -253,27 +286,14 @@ void loop()
   target += random_target;
 
   // execute move
-  stepper->moveTo(target);
-
-
-  if(homing) {
-    // do poor man's "bump" homing
-    // we move slowly towards the specified position, until the driver errors out.
-    // we expect to have hit a hard stop then, and reset the current position to zero.
-    dmx_enabled = false;
-    stepper->setSpeedInHz(prefs.getInt("speed",10000)/ 10); // slow and careful
-    stepper->moveTo(homing);
-    while(digitalRead(alarmPin)) // wait for alarm to come up
-      delay(10); 
-    digitalWrite(enablePin,0);   // clear the alarm
-    stepper->forceStop(); // stop homing movement
-    delay(500);
-    stepper->setCurrentPosition(0);
-    digitalWrite(enablePin,1);  // alarm is clear, ready to go again.
-    stepper->setSpeedInHz(prefs.getInt("speed",10000)); // restore speed
-    homing = 0;
-    dmx_enabled = true;
-  }
   
-  delay(1);
+  cybergear.set_position_ref(target / 1000.f);
+
+
+  // cybergear.request_status();
+  // check_alerts();
+  // XiaomiCyberGearStatus cybergear_status = cybergear.get_status();
+  // Serial.printf("POS:%f V:%f T:%f temp:%d\n", cybergear_status.position, cybergear_status.speed, cybergear_status.torque, cybergear_status.temperature);
+
+  delay(100);
 }
