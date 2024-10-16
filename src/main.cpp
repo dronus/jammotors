@@ -11,6 +11,8 @@
 
 
 #define statusLedPin 2
+
+// pins and ids for Cybergear CAN bus ("TWAI" in ESP32)
 #define RX_PIN 4
 #define TX_PIN 5
 uint8_t CYBERGEAR_CAN_ID = 0x7F;
@@ -27,6 +29,9 @@ int homing = 0;
 int enabled=0;
 int32_t target = 0;
 
+// type for a settable, storable parameter.
+// May hold an "apply" method that should be called after changing the parameter.
+// Provides "trySet" to check a webserver request for changes in this parameter.
 struct Param {
   enum ParamType {INT, STRING} type;
   const char* name;
@@ -45,6 +50,7 @@ struct Param {
   }
 };
 
+// list of settable and stored parameters
 Param params[] = {
   {Param::INT, "poweron_enable" },
   {Param::INT, "speed", [](Param& p) { cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
@@ -61,11 +67,13 @@ Param params[] = {
   {Param::STRING, "psk" }
 };
 
-
+// switch WiFi to acces point mode and provide an captive portal page.
+// this allows configuration of WiFi credentials in case the 
+// configured one is unavailable.
+// TODO dosn't work stable for now - often no DHCP on this one fails 
+// and no IP address is obtained. 
+// Maybe because of broad bandwith which collides with every other WiFi?
 void switchWifiAp() {
-  // provide a WiFi AP with an captive portal page.
-  // this allows configuration of WiFi credentials in case the 
-  // configured one is unavailable.
   Serial.println("Switching WiFi to AP mode.");
   WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
   Serial.print(WiFi.softAPIP());
@@ -75,15 +83,18 @@ void switchWifiAp() {
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
 
+// intermediate position targets set by manual input or incoming artnet messages
 uint32_t manual_target=0;
 uint32_t artnet_target=0;
 
+// receive incoming CAN messages from CyberGear motor and forward them to driver
 static void handle_rx_message(twai_message_t& message) {
   if (((message.identifier & 0xFF00) >> 8) == CYBERGEAR_CAN_ID){
     cybergear.process_message(message);
   }
 }
 
+// check alerts from CAN bus, receive incoming messages from CyberGear motor
 static void check_alerts(){
   // Check if alert happened
   uint32_t alerts_triggered;
@@ -123,8 +134,10 @@ static void check_alerts(){
 
 void setup() 
 {
+  // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
 
+  // initialize CyberGear on CAN bus
   cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
   cybergear.init_motor(MODE_POSITION);
   cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
@@ -134,10 +147,10 @@ void setup()
   cybergear.set_position_ref(0.0); /* set initial rotor position */
   Serial.println("Cybergear started.");
 
-
 //  Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
 
+  // initialize LittleFS on flash for persitent parameter storage by Prefs library
   bool spiffsBeginSuccess = LittleFS.begin();
   if (!spiffsBeginSuccess)
     Serial.println("LittleFS cannot be mounted.");
@@ -150,6 +163,8 @@ void setup()
   // reset WiFi credentials
   // prefs.putString("ssid","nf-9G"), prefs.putString("psk","brunxxer");
 
+  // try to connect configured WiFi AP. If not possible, back up 
+  // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
   WiFi.setHostname(prefs.getString("name","Motor").c_str());
   if(prefs.getString("psk","")=="")
@@ -176,19 +191,21 @@ void setup()
   Serial.print("connected, IP address: ");
   Serial.println(WiFi.localIP().toString().c_str());
 
+  // initialize OTA receiver for receiving firmware updates over WiFi
   Serial.println("Start OTA receiver.");
   ArduinoOTA.onStart([]()                  { Serial.println("OTA Start updating"   );});
   ArduinoOTA.onError([](ota_error_t error) { Serial.printf("OTA Error[%u]: ", error);});
   ArduinoOTA.begin();
 
+  // http Webserver for receiving commands
   httpServer = new AsyncWebServer(80);
 
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 
+  // http "set" API to set and apply values
   httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
-
     request->send(204);
 
     // handle persistent preferences
@@ -210,6 +227,7 @@ void setup()
     cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); 
   });
 
+  // http "status" API to query current status
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     response->printf("%s %d\n","target",target);
@@ -219,6 +237,7 @@ void setup()
     request->send(response);
   });
 
+  // http "config" API to query persistent configuration
   httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     for(Param& p : params)
@@ -229,6 +248,7 @@ void setup()
     request->send(response);
   });
 
+  // serve index.html single page UI
   httpServer->serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
   httpServer->begin();
   Serial.println("Webserver started.");
