@@ -19,7 +19,6 @@ uint8_t CYBERGEAR_CAN_ID = 0x7F;
 uint8_t MASTER_CAN_ID = 0x00;
 
 Preferences prefs;
-XiaomiCyberGearDriver cybergear = XiaomiCyberGearDriver(CYBERGEAR_CAN_ID, MASTER_CAN_ID);
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 DNSServer dnsServer;
@@ -51,12 +50,33 @@ struct Param {
   }
 };
 
+struct Channel {
+  XiaomiCyberGearDriver cybergear;
+  Channel(int _can_id) : cybergear(_can_id,MASTER_CAN_ID) {}
+void init_motor() {
+  // initialize CyberGear on CAN bus
+  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
+  cybergear.init_motor(MODE_POSITION);
+  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
+  cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f);
+  cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
+  cybergear.enable_motor(); /* turn on the motor */
+  cybergear.set_position_ref(0.0); /* set initial rotor position */
+  Serial.println("Cybergear started.");
+}
+};
+
+Channel channels[] = {
+  Channel(CYBERGEAR_CAN_ID)
+};
+
+
 // list of settable and stored parameters
 Param params[] = {
   {Param::INT, "poweron_enable" },
-  {Param::INT, "speed", [](Param& p) { cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
-  {Param::INT, "position_kp", [](Param& p) { cybergear.set_position_kp(prefs.getInt(p.name,1000)/1000.f);}},
-  {Param::INT, "accel", [](Param& p) { cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); }},
+  {Param::INT, "speed", [](Param& p) { channels[0].cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
+  {Param::INT, "position_kp", [](Param& p) { channels[0].cybergear.set_position_kp(prefs.getInt(p.name,1000)/1000.f);}},
+  {Param::INT, "accel", [](Param& p) { channels[0].cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); }},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
   {Param::INT, "osc_f" },
@@ -68,6 +88,8 @@ Param params[] = {
   {Param::STRING, "ssid" },
   {Param::STRING, "psk" }
 };
+
+
 
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
@@ -92,7 +114,7 @@ uint32_t artnet_target=0;
 // receive incoming CAN messages from CyberGear motor and forward them to driver
 static void handle_rx_message(twai_message_t& message) {
   if (((message.identifier & 0xFF00) >> 8) == CYBERGEAR_CAN_ID){
-    cybergear.process_message(message);
+    channels[0].cybergear.process_message(message);
   }
 }
 
@@ -134,18 +156,6 @@ static void check_alerts(){
   }
 }
 
-void init_motor() {
-  // initialize CyberGear on CAN bus
-  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-  cybergear.init_motor(MODE_POSITION);
-  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
-  cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f);
-  cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
-  cybergear.enable_motor(); /* turn on the motor */
-  cybergear.set_position_ref(0.0); /* set initial rotor position */
-  Serial.println("Cybergear started.");
-}
-
 void setup() 
 {
   // status LED, start off and turn on once initalisation is complete.
@@ -153,7 +163,8 @@ void setup()
 
   enabled = prefs.getInt("poweron_enable",0);
 
-  init_motor();
+  for(Channel& channel : channels) 
+    channel.init_motor();
 
 //  Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
@@ -228,7 +239,7 @@ void setup()
     if (request->hasParam("enable") ) {
       enabled = request->getParam("enable")->value().toInt();
       if(have_alarm) {
-        init_motor();
+        channels[0].init_motor();
         have_alarm = 0;
       }
     }
@@ -237,14 +248,14 @@ void setup()
     if (request->hasParam("reset") )
       ESP.restart();
 
-    cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); 
+    channels[0].cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); 
   });
 
   // http "status" API to query current status
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     
-     XiaomiCyberGearStatus status = cybergear.get_status();
+     XiaomiCyberGearStatus status = channels[0].cybergear.get_status();
   // Serial.printf("POS:%f V:%f T:%f temp:%d\n", cybergear_status.position, cybergear_status.speed, cybergear_status.torque, cybergear_status.temperature);
     
     response->printf("%s %d\n","target",target);
@@ -326,7 +337,7 @@ void loop()
   target += random_target;
 
   // execute move  
-  cybergear.set_position_ref(target / 1000.f);
+  channels[0].cybergear.set_position_ref(target / 1000.f);
  
   // check motor state
   // also updates motor status data that can be relayed to wifi clients then.
