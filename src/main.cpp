@@ -25,6 +25,7 @@ AsyncWebServer *httpServer;
 DNSServer dnsServer;
 
 bool dmx_enabled = true;
+bool have_alarm=0;
 int homing = 0;
 int enabled=0;
 int32_t target = 0;
@@ -54,6 +55,7 @@ struct Param {
 Param params[] = {
   {Param::INT, "poweron_enable" },
   {Param::INT, "speed", [](Param& p) { cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
+  {Param::INT, "position_kp", [](Param& p) { cybergear.set_position_kp(prefs.getInt(p.name,1000)/1000.f);}},
   {Param::INT, "accel", [](Param& p) { cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); }},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
@@ -104,6 +106,8 @@ static void check_alerts(){
 
   // Handle alerts
   if (alerts_triggered & TWAI_ALERT_ERR_PASS) {
+    have_alarm = true;
+    enabled = false;
     Serial.println("Alert: TWAI controller has become error passive.");
   }
   if (alerts_triggered & TWAI_ALERT_BUS_ERROR) {
@@ -130,22 +134,26 @@ static void check_alerts(){
   }
 }
 
-
+void init_motor() {
+  // initialize CyberGear on CAN bus
+  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
+  cybergear.init_motor(MODE_POSITION);
+  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
+  cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f);
+  cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
+  cybergear.enable_motor(); /* turn on the motor */
+  cybergear.set_position_ref(0.0); /* set initial rotor position */
+  Serial.println("Cybergear started.");
+}
 
 void setup() 
 {
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
 
-  // initialize CyberGear on CAN bus
-  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-  cybergear.init_motor(MODE_POSITION);
-  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
-  cybergear.set_limit_current(prefs.getInt("poweron_enable",0) * prefs.getInt("accel",10000)/1000.f);
-  cybergear.set_speed_kp(0.1f);
-  cybergear.enable_motor(); /* turn on the motor */
-  cybergear.set_position_ref(0.0); /* set initial rotor position */
-  Serial.println("Cybergear started.");
+  enabled = prefs.getInt("poweron_enable",0);
+
+  init_motor();
 
 //  Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
@@ -217,8 +225,13 @@ void setup()
       manual_target = request->getParam("target")->value().toInt();
     //if (request->hasParam("set_position") )
     //  stepper->setCurrentPosition(request->getParam("set_position")->value().toInt());
-    if (request->hasParam("enable") )
+    if (request->hasParam("enable") ) {
       enabled = request->getParam("enable")->value().toInt();
+      if(have_alarm) {
+        init_motor();
+        have_alarm = 0;
+      }
+    }
     if (request->hasParam("home") )
       homing = request->getParam("home")->value().toInt();
     if (request->hasParam("reset") )
@@ -239,7 +252,7 @@ void setup()
     response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
     response->printf("%s %d\n","temperature",(int32_t)status.temperature);
     response->printf("%s %d\n","enable",enabled);
-    response->printf("%s %d\n","alarm",0);
+    response->printf("%s %d\n","alarm",have_alarm);
     request->send(response);
   });
 

@@ -11,9 +11,9 @@
 #define CMD_RAM_WRITE                0x12
 #define CMD_GET_STATUS               0x15
 
-#define ADDR_SPEED_KP              0x2014
-#define ADDR_SPEED_KI              0x2015
-#define ADDR_POSITION_KP           0x2016
+#define ADDR_SPEED_KP              0x701f
+#define ADDR_SPEED_KI              0x7020
+#define ADDR_POSITION_KP           0x701e
 #define ADDR_RUN_MODE              0x7005
 #define ADDR_I_REF                 0x7006
 #define ADDR_SPEED_REF             0x700A
