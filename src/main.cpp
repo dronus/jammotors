@@ -230,8 +230,14 @@ void setup()
   // http "status" API to query current status
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
+    
+     XiaomiCyberGearStatus status = cybergear.get_status();
+  // Serial.printf("POS:%f V:%f T:%f temp:%d\n", cybergear_status.position, cybergear_status.speed, cybergear_status.torque, cybergear_status.temperature);
+    
     response->printf("%s %d\n","target",target);
-    response->printf("%s %d\n","position",(int32_t)round(cybergear.get_status().position*1000.f));
+    response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
+    response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
+    response->printf("%s %d\n","temperature",(int32_t)status.temperature);
     response->printf("%s %d\n","enable",enabled);
     response->printf("%s %d\n","alarm",0);
     request->send(response);
@@ -269,6 +275,7 @@ void setup()
 
 
 uint32_t last_time;
+uint32_t last_status;
 float osc_phase = 0;
 int32_t random_countdown = 0;
 int32_t random_target = 0;
@@ -305,15 +312,12 @@ void loop()
   }
   target += random_target;
 
-  // execute move
-  
+  // execute move  
   cybergear.set_position_ref(target / 1000.f);
+ 
+  // check motor state
+  // also updates motor status data that can be relayed to wifi clients then.
+  check_alerts();
 
-
-  // cybergear.request_status();
-  // check_alerts();
-  // XiaomiCyberGearStatus cybergear_status = cybergear.get_status();
-  // Serial.printf("POS:%f V:%f T:%f temp:%d\n", cybergear_status.position, cybergear_status.speed, cybergear_status.torque, cybergear_status.temperature);
-
-  delay(100);
+  delay(10);
 }
