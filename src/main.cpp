@@ -53,43 +53,48 @@ struct Param {
 struct Channel {
   XiaomiCyberGearDriver cybergear;
   Channel(int _can_id) : cybergear(_can_id,MASTER_CAN_ID) {}
-void init_motor() {
-  // initialize CyberGear on CAN bus
-  cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-  cybergear.init_motor(MODE_POSITION);
-  cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f); /* set the maximum speed of the motor */
-  cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f);
-  cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
-  cybergear.enable_motor(); /* turn on the motor */
-  cybergear.set_position_ref(0.0); /* set initial rotor position */
-  Serial.println("Cybergear started.");
-}
+  void init_motor() {
+    // initialize CyberGear on CAN bus
+    cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
+    cybergear.init_motor(MODE_POSITION);
+    cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
+    cybergear.enable_motor(); /* turn on the motor */
+    cybergear.set_position_ref(0.0); /* set initial rotor position */
+    Serial.println("Cybergear started.");
+  }
+  void update() {
+    cybergear.set_limit_speed(prefs.getInt("speed",10000)/1000.f);
+    cybergear.set_position_kp(prefs.getInt("position_kp",1000)/1000.f);
+    cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f);
+    // TODO cybergear.set_position_ref(0.0); 
+  }
 };
 
 Channel channels[] = {
   Channel(CYBERGEAR_CAN_ID)
 };
 
-
 // list of settable and stored parameters
 Param params[] = {
   {Param::INT, "poweron_enable" },
-  {Param::INT, "speed", [](Param& p) { channels[0].cybergear.set_limit_speed(prefs.getInt(p.name,10000)/1000.f);}},
-  {Param::INT, "position_kp", [](Param& p) { channels[0].cybergear.set_position_kp(prefs.getInt(p.name,1000)/1000.f);}},
-  {Param::INT, "accel", [](Param& p) { channels[0].cybergear.set_limit_current(enabled * prefs.getInt("accel",10000)/1000.f); }},
+  {Param::INT, "speed"},
+  {Param::INT, "position_kp"},
+  {Param::INT, "accel"},
   {Param::INT, "channel" },
   {Param::INT, "scale" },
   {Param::INT, "osc_f" },
   {Param::INT, "osc_a" },
   {Param::INT, "random_d" },
   {Param::INT, "random_rd" },
-  {Param::INT, "random_a" },
+  {Param::INT, "random_a" }
+  ,
+//};
+
+//Param global_params[] = {
   {Param::STRING, "name" },
   {Param::STRING, "ssid" },
   {Param::STRING, "psk" }
 };
-
-
 
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
@@ -315,6 +320,7 @@ void loop()
   uint32_t time = millis();
   uint32_t dt = time - last_time;
   last_time = time;
+  //Serial.println(dt);
 
   // compute and set motion target
   // set manual target (offset)
@@ -336,8 +342,9 @@ void loop()
   }
   target += random_target;
 
-  // execute move  
-  channels[0].cybergear.set_position_ref(target / 1000.f);
+  // execute move
+  channels[0].update();
+  channels[0].cybergear.set_position_ref(target/1000.f);
  
   // check motor state
   // also updates motor status data that can be relayed to wifi clients then.
