@@ -101,9 +101,10 @@ struct Channel : public Params {
   }
 };
 
-const uint8_t max_channels = 1;
+const uint8_t max_channels = 2;
 Channel channels[max_channels] = {
-  Channel(CYBERGEAR_CAN_ID)
+  Channel(CYBERGEAR_CAN_ID),
+  Channel(CYBERGEAR_CAN_ID+1)
 };
 
 char* global_params[] = {

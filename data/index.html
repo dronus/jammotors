@@ -7,7 +7,7 @@ input, button {margin: 5px}
 </style>
 
 <div>
-  <h2>Channel <input id=channel_id value="0" style="font-size:130%; width: 1em;"></h2>
+  <h2>Channel <input id=channel_id onchange="update_channel()" value="0" style="font-size:130%; width: 1em;"></h2>
   <div>
     Actual: <input id=position disabled>
     Target: <input id=target onchange="set(this)">
@@ -88,7 +88,10 @@ async function fetch_and_show(url) {
 
 setInterval(()=>fetch_and_show("/status"),500);
 
-fetch_and_show("/config");
+function update_channel() {
+  fetch_and_show("/config");
+}
+update_channel();
 
 </script>
 
