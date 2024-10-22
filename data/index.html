@@ -7,7 +7,7 @@ input, button {margin: 5px}
 </style>
 
 <div>
-  <h2>Position</h2>
+  <h2>Channel <input id=channel_id value="0" style="font-size:130%; width: 1em;"></h2>
   <div>
     Actual: <input id=position disabled>
     Target: <input id=target onchange="set(this)">
@@ -18,7 +18,7 @@ input, button {margin: 5px}
     <h3>Enable / Error</h3>
     Alarm: <input id=alarm disabled> (reset by disable / enable)<br/>
     Enabled:  <input id=enable onchange="set(this)"> 
-    Enable on Power On: <input id=poweron_enable onchange="set(this)">
+    Enable on Power On: <input id=poweron_en onchange="set(this)">
   </div>
   <div>
   <h3>Homing</h3>
@@ -43,7 +43,7 @@ input, button {margin: 5px}
     <h3>Motion Limits</h3>
     Speed:    <input id=speed  onchange="set(this)">
     Accel:    <input id=accel  onchange="set(this)">
-    Pos kp:    <input id=position_kp  onchange="set(this)">
+    Pos kp:    <input id=pos_kp  onchange="set(this)">
   </div>
   <div>
     <h3>ArtNet DMX Input</h3>
@@ -60,8 +60,9 @@ input, button {margin: 5px}
 
 <script>
 function set(el) {
+  let channel_id = document.querySelector('#channel_id').value;
   let param = el.id;
-  fetch(`/set?${param}=${el.value}`);
+  fetch(`/set?channel_id=${channel_id}&${param}=${el.value}`);
   el.blur();
   el.value = '';
 
@@ -70,12 +71,13 @@ function set(el) {
 
 function show(id, value) {
   let el = document.getElementById(id);
-  if(el != document.activeElement)
+  if(el && el != document.activeElement)
     el.value = value;
 }
 
 async function fetch_and_show(url) {
-  let body = await(fetch(url).then(r => r.text()));
+  let channel_id = document.querySelector('#channel_id').value;
+  let body = await(fetch(url+`?channel_id=${channel_id}`).then(r => r.text()));
   let lines = body.split('\n');
   for(let line of lines) {
     let parts = line.split(/ (.*)/s); // split on first " " only

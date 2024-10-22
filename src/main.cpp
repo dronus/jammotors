@@ -26,23 +26,22 @@ DNSServer dnsServer;
 int homing = 0;
 
 struct Channel : public Params {
-  XiaomiCyberGearDriver cybergear;
-  Channel(int _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){}
 
-  P_int32_t (poweron_enable, 0, 1, 0);
+  P_int32_t (poweron_en, 0, 1, 0);
   P_int32_t (speed, 0, 100000, 10000);
-  P_int32_t (position_kp, 0, 10000, 1000);
+  P_int32_t (pos_kp, 0, 10000, 1000);
   P_int32_t (accel, 0, 100000, 10000);
   P_int32_t (channel, 0, 255, 0);
   P_int32_t (scale, 0, 10000,  0);
-  P_int32_t (osc_f, 0, 10000,  0);
+  P_int32_t (osc_f, 0, 10000,  1000);
   P_int32_t (osc_a, 0, 100000, 0);
   P_int32_t (random_d, 0, 100000, 1000);
   P_int32_t (random_rd,0, 100000, 1000);
   P_int32_t (random_a ,0, 10000, 0);
+  P_end;
 
   int can_id;
-  int enabled;
+  int enabled, last_enabled=false;
   int have_alarm;
   int32_t target = 0;
   int32_t manual_target=0;
@@ -50,21 +49,21 @@ struct Channel : public Params {
   float osc_phase = 0;
   int32_t random_countdown = 0;
   int32_t random_target = 0;
+  XiaomiCyberGearDriver cybergear;
+
+  Channel(int _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){}
 
   void init() {
     // initialize CyberGear on CAN bus    
     cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
     cybergear.init_motor(MODE_POSITION);
-    cybergear.set_position_kp(position_kp/1000.f);
+    cybergear.set_position_kp(pos_kp/1000.f);
     cybergear.enable_motor(); /* turn on the motor */
     cybergear.set_position_ref(0.0); /* set initial rotor position */
-    enabled = poweron_enable;
+    enabled = poweron_en;
     Serial.println("Cybergear started.");
   }
   void update(uint32_t dt) {
-    cybergear.set_limit_speed(speed/1000.f);
-    cybergear.set_position_kp(position_kp/1000.f);
-    cybergear.set_limit_current(enabled * accel/1000.f);
 
     // compute and set motion target
     // set manual target (offset)
@@ -86,8 +85,19 @@ struct Channel : public Params {
     }
     target += random_target;
 
+    // update enable state
+    if(!enabled && last_enabled)
+      cybergear.stop_motor();  
+    if(enabled && !last_enabled)
+      cybergear.enable_motor();  
+
     // execute move
-    cybergear.set_position_ref(target/1000.f);
+    if(enabled) {
+      cybergear.set_limit_speed(speed/1000.f);
+      cybergear.set_position_kp(pos_kp/1000.f);
+      cybergear.set_limit_current(enabled * accel/1000.f);
+      cybergear.set_position_ref(target/1000.f);
+    }
   }
 };
 
@@ -167,25 +177,11 @@ static void check_alerts(){
 
 void setup() 
 {
+  Serial.begin(115200);
+  Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
+
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
-
-  for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
-    Channel& channel = channels[channel_id];
-    
-    // read preferences
-    Param* p = channel.getParams();
-    do {
-      char prefs_name[32];
-      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);      
-      p->set(prefs.getInt(prefs_name, p->desc->def));
-    } while ( p = p->next() );
-    // initialize
-    channel.init();
-  }
-
-//  Serial.begin(115200);
-  Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
 
   // initialize LittleFS on flash for persitent parameter storage by Prefs library
   bool spiffsBeginSuccess = LittleFS.begin();
@@ -196,6 +192,30 @@ void setup()
 
   prefs.begin("motor");
   Serial.println("Prefs started.");
+
+  for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
+    Channel& channel = channels[channel_id];
+    
+    // read preferences
+    for(Param* p = channel.getParams(); p; p=p->next()) {
+      char prefs_name[32];
+      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
+      
+      Serial.print(prefs_name);Serial.print(" ");
+      if(prefs.isKey(prefs_name)) {
+        int val = prefs.getInt(prefs_name); 
+        Serial.print(val);
+        p->set(val);
+      } else {
+        Serial.print(" use default ");
+        Serial.print(p->get());
+      }
+      Serial.println();
+    }
+    // initialize
+    channel.init();
+  }
+
 
   // reset WiFi credentials
   // prefs.putString("ssid","nf-9G"), prefs.putString("psk","brunxxer");
@@ -298,8 +318,16 @@ void setup()
   // http "config" API to query persistent configuration
   httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
+    
+    // send global configuration
     for(char* param : global_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
+      
+    // send current channel configuration
+    int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
+    for(Param* p = channels[channel_id].getParams(); p; p = p->next())
+      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+      
     request->send(response);
   });
 
