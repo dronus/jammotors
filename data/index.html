@@ -4,10 +4,21 @@
 * { font-family: sans; }
 div {  display: table; margin: 10px; padding: 10px; border-radius: 10px; background-color: rgba(0,0,0,0.2); }
 input, button {margin: 5px}
+h2 input, h2 select { font-size:120%;}
+h2 input { width: 1em;}
 </style>
 
 <div>
-  <h2>Channel <input id=channel_id onchange="update_channel()" value="0" style="font-size:130%; width: 1em;"></h2>
+  <h2>Channel 
+    <input id=channel_id onchange="update_channel()" value="0"> : 
+    <select id=driver_id onchange="set(this)">
+      <option value=0>Disabled</option>
+      <option value=1>CyberGear</option>
+      <option value=2>RC Servo</option>
+      <option value=3>PWM</option>
+    </select> on Pin / Address 
+    <input id=pin_id onchange="set(this)" style="width: 2em;">
+  </h2>
   <div>
     Actual: <input id=position disabled>
     Target: <input id=target onchange="set(this)">
