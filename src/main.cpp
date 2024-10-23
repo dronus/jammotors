@@ -33,14 +33,19 @@ struct Channel;
 struct Driver {
   virtual void init(Channel& c) = 0;
   virtual void update(Channel& c, uint32_t dt) = 0;
+  virtual ~Driver(){};
 };
+
+Driver* createDriver(uint8_t driver_id,uint8_t pin_id);
 
 struct Channel : public Params {
 
+  P_uint8_t (driver_id, 0, 0xFF, 0);
+  P_uint8_t (pin_id, 0, 0xFF, 0);
   P_int32_t (poweron_en, 0, 1, 0);
   P_int32_t (speed, 0, 100000, 10000);
-  P_int32_t (pos_kp, 0, 10000, 1000);
   P_int32_t (accel, 0, 100000, 10000);
+  P_int32_t (pos_kp, 0, 10000, 1000);
   P_int32_t (channel, 0, 255, 0);
   P_int32_t (scale, 0, 10000,  0);
   P_int32_t (osc_f, 0, 10000,  1000);
@@ -58,18 +63,24 @@ struct Channel : public Params {
   float osc_phase = 0;
   int32_t random_countdown = 0;
   int32_t random_target = 0;
-  Driver* driver;
-
-  Channel(Driver* _driver) {
-    driver = _driver;
-  }
+  uint8_t last_driver_id=0, last_pin_id=0;
+  Driver* driver=NULL;
 
   void init() {
     enabled = poweron_en;
-    driver->init(*this);
   }
   
   void update(uint32_t dt) {
+
+    // check if driver is still up-to-date 
+    // and reinitialize if needed
+    if(driver_id != last_driver_id || pin_id != last_pin_id) {
+      if(driver) delete driver;
+      driver = createDriver(driver_id,pin_id);
+      last_driver_id = driver_id;
+      last_pin_id = pin_id;
+      if(driver) driver->init(*this);
+    }
 
     // compute and set motion target
     // set manual target (offset)
@@ -91,7 +102,8 @@ struct Channel : public Params {
     }
     target += random_target;
 
-    driver->update(*this, dt);
+    if(driver)
+      driver->update(*this, dt);
     
     last_enabled = enabled;
   }
@@ -112,6 +124,7 @@ struct DriverCybergear : public Driver{
         break;
       }
   }
+  virtual ~DriverCybergear() {cybergear.stop_motor();};
 
   void init(Channel& c) {
     // initialize CyberGear on CAN bus
@@ -145,6 +158,7 @@ struct DriverServo : public Driver {
   int pin;
 
   DriverServo(int _pin){ pin=_pin; };
+  virtual ~DriverServo() { servo.detach(); Serial.println("detached.");}
 
   void init(Channel& c) {
     servo.setPeriodHertz(50);// Standard 50hz servo
@@ -164,8 +178,8 @@ Driver* createDriver(uint8_t driver_id) {
 }
 
 Channel channels[max_channels] = {
-  Channel(new DriverCybergear(CYBERGEAR_CAN_ID)),
-  Channel(new DriverCybergear(CYBERGEAR_CAN_ID+1))
+  Channel(),
+  Channel()
 };
 
 char* global_params[] = {
