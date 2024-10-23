@@ -25,6 +25,15 @@ DNSServer dnsServer;
 
 int homing = 0;
 
+const uint8_t max_channels = 2;
+
+struct Channel;
+
+struct Driver {
+  virtual void init(Channel& c) = 0;
+  virtual void update(Channel& c, uint32_t dt) = 0;
+};
+
 struct Channel : public Params {
 
   P_int32_t (poweron_en, 0, 1, 0);
@@ -40,7 +49,6 @@ struct Channel : public Params {
   P_int32_t (random_a ,0, 10000, 0);
   P_end;
 
-  int can_id;
   int enabled, last_enabled=false;
   int have_alarm;
   int32_t target = 0;
@@ -49,20 +57,17 @@ struct Channel : public Params {
   float osc_phase = 0;
   int32_t random_countdown = 0;
   int32_t random_target = 0;
-  XiaomiCyberGearDriver cybergear;
+  Driver* driver;
 
-  Channel(int _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){}
+  Channel(Driver* _driver) {
+    driver = _driver;
+  }
 
   void init() {
-    // initialize CyberGear on CAN bus    
-    cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-    cybergear.init_motor(MODE_POSITION);
-    cybergear.set_position_kp(pos_kp/1000.f);
-    cybergear.enable_motor(); /* turn on the motor */
-    cybergear.set_position_ref(0.0); /* set initial rotor position */
     enabled = poweron_en;
-    Serial.println("Cybergear started.");
+    driver->init(*this);
   }
+  
   void update(uint32_t dt) {
 
     // compute and set motion target
@@ -85,26 +90,58 @@ struct Channel : public Params {
     }
     target += random_target;
 
-    // update enable state
-    if(!enabled && last_enabled)
-      cybergear.stop_motor();  
-    if(enabled && !last_enabled)
-      cybergear.enable_motor();  
-
-    // execute move
-    if(enabled) {
-      cybergear.set_limit_speed(speed/1000.f);
-      cybergear.set_position_kp(pos_kp/1000.f);
-      cybergear.set_limit_current(enabled * accel/1000.f);
-      cybergear.set_position_ref(target/1000.f);
-    }
+    driver->update(*this, dt);
+    
+    last_enabled = enabled;
   }
 };
 
-const uint8_t max_channels = 2;
+void check_alerts();
+
+struct DriverCybergear;
+DriverCybergear* can_handlers[max_channels];
+struct DriverCybergear : public Driver{
+  XiaomiCyberGearDriver cybergear;
+  int can_id;
+
+  DriverCybergear(int _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
+    for(uint8_t i=0; i<max_channels; i++)
+      if(!can_handlers[i]) {
+        can_handlers[i]=this;
+        break;
+      }
+  }
+
+  void init(Channel& c) {
+    // initialize CyberGear on CAN bus
+    cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
+    cybergear.init_motor(MODE_POSITION);
+    Serial.println("Cybergear started.");
+  };
+
+  void update(Channel& c, uint32_t dt) {
+    // update enable state
+    if(!c.enabled && c.last_enabled)
+      cybergear.stop_motor();
+    if(c.enabled && !c.last_enabled)
+      cybergear.enable_motor();
+    // execute move
+    if(c.enabled) {
+      cybergear.set_limit_speed(c.speed/1000.f);
+      cybergear.set_position_kp(c.pos_kp/1000.f);
+      cybergear.set_limit_current(c.accel/1000.f);
+      cybergear.set_position_ref(c.target/1000.f);
+    }
+
+    // check motor state (handle messages for all CyberGear motors)
+    // also updates motor status data that can be relayed to wifi clients then.
+    check_alerts();
+  };
+};
+
 Channel channels[max_channels] = {
-  Channel(CYBERGEAR_CAN_ID),
-  Channel(CYBERGEAR_CAN_ID+1)
+  Channel(new DriverCybergear(CYBERGEAR_CAN_ID)),
+  Channel(new DriverCybergear(CYBERGEAR_CAN_ID+1))
 };
 
 char* global_params[] = {
@@ -131,15 +168,14 @@ void switchWifiAp() {
 
 // receive incoming CAN messages from CyberGear motor and forward them to driver
 static void handle_rx_message(twai_message_t& message) {
-  for(Channel& channel : channels) {
-    if (((message.identifier & 0xFF00) >> 8) == channel.can_id){
-      channel.cybergear.process_message(message);
-    }
-  }
+  uint8_t can_id = (message.identifier & 0xFF00) >> 8;
+  for(DriverCybergear* dcg : can_handlers)
+    if (dcg && can_id == dcg->can_id)
+      dcg->cybergear.process_message(message);
 }
 
 // check alerts from CAN bus, receive incoming messages from CyberGear motor
-static void check_alerts(){
+void check_alerts(){
   // Check if alert happened
   uint32_t alerts_triggered;
   twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(1000));
@@ -162,10 +198,6 @@ static void check_alerts(){
     Serial.printf("TX error: %d\t", twai_status.tx_error_counter);
     Serial.printf("TX failed: %d\n", twai_status.tx_failed_count);
   }
-  // if (alerts_triggered & TWAI_ALERT_TX_SUCCESS) {
-  //   Serial.println("Alert: The Transmission was successful.");
-  //   Serial.printf("TX buffered: %d\t", twai_status.msgs_to_tx);
-  // }
 
   // Check if message is received
   if (alerts_triggered & TWAI_ALERT_RX_DATA) {
@@ -306,11 +338,11 @@ void setup()
     AsyncResponseStream *response = request->beginResponseStream("text/html");
 
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
-    XiaomiCyberGearStatus status = channels[channel_id].cybergear.get_status();
+    // XiaomiCyberGearStatus status = channels[channel_id].cybergear.get_status();
     response->printf("%s %d\n","target",channels[channel_id].target);
-    response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
-    response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
-    response->printf("%s %d\n","temperature",(int32_t)status.temperature);
+    // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
+    // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
+    // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
     response->printf("%s %d\n","enable",channels[channel_id].enabled);
     response->printf("%s %d\n","alarm",channels[channel_id].have_alarm);
     request->send(response);
@@ -371,9 +403,5 @@ void loop()
   for(Channel& c : channels)
     c.update(dt);
  
-  // check motor state
-  // also updates motor status data that can be relayed to wifi clients then.
-  check_alerts();
-
   delay(10);
 }
