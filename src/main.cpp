@@ -7,6 +7,7 @@
 #include <ArtnetnodeWifi.h>
 #include "driver/twai.h"
 #include "xiaomi_cybergear_driver.h"
+#include <ESP32Servo.h>
 #include <Preferences.h>
 #include "param.h"
 
@@ -138,6 +139,29 @@ struct DriverCybergear : public Driver{
     check_alerts();
   };
 };
+
+struct DriverServo : public Driver {
+  Servo servo;
+  int pin;
+
+  DriverServo(int _pin){ pin=_pin; };
+
+  void init(Channel& c) {
+    servo.setPeriodHertz(50);// Standard 50hz servo
+    servo.attach(pin, 500, 2400);
+    Serial.println("Servo started.");
+  };
+
+  void update(Channel& c, uint32_t dt) {
+    servo.write(500 + max(0,c.target));
+  };
+};
+
+Driver* createDriver(uint8_t driver_id) {
+  if(driver_id == 1) return new DriverCybergear();
+  if(driver_id == 2) return new DriverServo();
+  return NULL;
+}
 
 Channel channels[max_channels] = {
   Channel(new DriverCybergear(CYBERGEAR_CAN_ID)),
