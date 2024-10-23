@@ -153,6 +153,12 @@ struct DriverCybergear : public Driver{
     // check motor state (handle messages for all CyberGear motors)
     // also updates motor status data that can be relayed to wifi clients then.
     check_alerts();
+
+    XiaomiCyberGearStatus status = cybergear.get_status();
+    c.position = (int32_t)round(status.position*1000.f);
+    // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
+    // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
+    // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
   };
 };
 
@@ -171,6 +177,7 @@ struct DriverServo : public Driver {
 
   void update(Channel& c, uint32_t dt) {
     servo.write(500 + max(0,c.target));
+    c.position = c.target; // no real feedback possible
   };
 };
 
@@ -442,11 +449,8 @@ void setup()
     AsyncResponseStream *response = request->beginResponseStream("text/html");
 
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
-    // XiaomiCyberGearStatus status = channels[channel_id].cybergear.get_status();
     response->printf("%s %d\n","target",channels[channel_id].target);
-    // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
-    // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
-    // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
+    response->printf("%s %d\n","position",channels[channel_id].position);
     response->printf("%s %d\n","enable",channels[channel_id].enabled);
     response->printf("%s %d\n","alarm",channels[channel_id].have_alarm);
     request->send(response);
