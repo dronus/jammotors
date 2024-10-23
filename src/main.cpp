@@ -5,11 +5,12 @@
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
 #include <ArtnetnodeWifi.h>
-#include "driver/twai.h"
-#include "xiaomi_cybergear_driver.h"
-#include <ESP32Servo.h>
 #include <Preferences.h>
 #include "param.h"
+#include "FastAccelStepper.h"
+#include <ESP32Servo.h>
+#include "driver/twai.h"
+#include "xiaomi_cybergear_driver.h"
 
 #define statusLedPin 2
 
@@ -23,6 +24,7 @@ Preferences prefs;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 DNSServer dnsServer;
+FastAccelStepperEngine engine = FastAccelStepperEngine();
 
 int homing = 0;
 
@@ -58,6 +60,7 @@ struct Channel : public Params {
   int enabled, last_enabled=false;
   int have_alarm;
   int32_t target = 0;
+  int32_t position = 0;
   int32_t manual_target=0;
   int32_t artnet_target=0;
   float osc_phase = 0;
@@ -185,13 +188,58 @@ struct DriverPWM : public Driver {
 
   void update(Channel& c, uint32_t dt) {
     analogWrite(pin, max(0, min(1023,c.target)));
+    c.position = c.target; // no real feedback possible
+  };
+};
+
+struct DriverStepper : public Driver {
+  FastAccelStepper *stepper = NULL;
+
+  const uint8_t pinStep = 16, pinDir = 17, pinEnable = 21, pinAlarm = 22;
+
+  virtual ~DriverStepper() {
+    if(stepper) {
+      stepper->forceStop();
+      stepper->detachFromPin();
+      delete stepper;
+      pinMode(pinEnable,INPUT);
+    }
+  }
+
+  // simple external pin handler - the FastAccelStepper original one does not like other interrupts.
+  static bool setExternalPin(uint8_t pin, uint8_t value) {
+    pin = pin & ~PIN_EXTERNAL_FLAG;
+    pinMode(pin, OUTPUT);
+    bool oldValue = digitalRead(pin);
+    digitalWrite(pin, value);
+    return oldValue;
+  }
+
+  void init(Channel& c) {
+    // start stepper driver
+    engine.init();
+    stepper = engine.stepperConnectToPin(pinStep, DRIVER_MCPWM_PCNT);
+    stepper->setDirectionPin( pinDir + PIN_EXTERNAL_FLAG ); // use external pin handler
+    engine.setExternalCallForPin(DriverStepper::setExternalPin);
+    pinMode(pinEnable, OUTPUT);
+    Serial.println("Stepper started.");
+  };
+
+  void update(Channel& c, uint32_t dt) {
+    digitalWrite(pinEnable, c.enabled);
+    stepper->setSpeedInHz(c.speed);
+    stepper->setAcceleration(c.accel);
+    stepper->moveTo(c.target);
+    c.position = stepper->getCurrentPosition();
   };
 };
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
-  if(driver_id == 1) return new DriverCybergear(pin_id);
+  if(driver_id == 1) return new DriverStepper();
   if(driver_id == 2) return new DriverServo(pin_id);
   if(driver_id == 3) return new DriverPWM(pin_id);
+  if(driver_id == 4) return new DriverCybergear(pin_id);
+
   return NULL;
 }
 
