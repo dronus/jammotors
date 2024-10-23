@@ -171,9 +171,27 @@ struct DriverServo : public Driver {
   };
 };
 
-Driver* createDriver(uint8_t driver_id) {
-  if(driver_id == 1) return new DriverCybergear();
-  if(driver_id == 2) return new DriverServo();
+struct DriverPWM : public Driver {
+  ESP32PWM pwm;
+  int pin;
+
+  DriverPWM(int _pin){ pin=_pin; };
+  virtual ~DriverPWM() { analogWrite(pin,0);}
+
+  void init(Channel& c) {
+    analogWriteResolution(10);
+    Serial.println("PWM started.");
+  };
+
+  void update(Channel& c, uint32_t dt) {
+    analogWrite(pin, max(0, min(1023,c.target)));
+  };
+};
+
+Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
+  if(driver_id == 1) return new DriverCybergear(pin_id);
+  if(driver_id == 2) return new DriverServo(pin_id);
+  if(driver_id == 3) return new DriverPWM(pin_id);
   return NULL;
 }
 
