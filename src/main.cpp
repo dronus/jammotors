@@ -48,7 +48,7 @@ struct Channel : public Params {
   P_int32_t (speed, 0, 100000, 10000);
   P_int32_t (accel, 0, 100000, 10000);
   P_int32_t (pos_kp, 0, 10000, 1000);
-  P_int32_t (channel, 0, 255, 0);
+  P_int32_t (dmx_channel, 0, 255, 0);
   P_int32_t (scale, 0, 10000,  0);
   P_int32_t (osc_f, 0, 10000,  1000);
   P_int32_t (osc_a, 0, 100000, 0);
@@ -481,8 +481,8 @@ void setup()
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
     for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
       Channel& c = channels[channel_id];
-      if(c.channel < length)
-        c.artnet_target = c.scale * ( ((uint32_t)data[0+c.channel]) + (((uint32_t)data[1+c.channel])<<8) );
+      if(c.dmx_channel > 0 && c.dmx_channel-1 < length)
+        c.artnet_target = c.scale * ((uint32_t)data[c.dmx_channel-1]);
     }
 
   });
