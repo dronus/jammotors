@@ -175,17 +175,23 @@ struct DriverServo : public Driver {
   int pin;
 
   DriverServo(int _pin){ pin=_pin; };
-  virtual ~DriverServo() { servo.detach(); Serial.println("detached.");}
+  virtual ~DriverServo() { servo.detach(); }
 
   void init(Channel& c) {
     servo.setPeriodHertz(50);// Standard 50hz servo
-    servo.attach(pin, 500, 2400);
     Serial.println("Servo started.");
   };
 
   void update(Channel& c, uint32_t dt) {
-    servo.write(500 + max(0,c.target));
-    c.position = c.target; // no real feedback possible
+    if(!c.enabled && c.last_enabled)
+      servo.detach();
+    if(c.enabled && !c.last_enabled)
+      servo.attach(pin, 500, 2400);
+
+    if(c.enabled) {
+      servo.write(1000 + max(0,c.target));
+      c.position = c.target; // no real feedback possible
+    }
   };
 };
 
