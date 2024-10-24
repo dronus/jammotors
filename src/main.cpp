@@ -62,7 +62,7 @@ struct Channel : public Params {
   int enabled, last_enabled=false;
   int have_alarm;
   int32_t target = 0;
-  int32_t position = 0;
+  int32_t position = 0, torque = 0, temperature = 0;
   int32_t manual_target=0;
   int32_t artnet_target=0;
   float osc_phase = 0;
@@ -158,6 +158,8 @@ struct DriverCybergear : public Driver{
 
     XiaomiCyberGearStatus status = cybergear.get_status();
     c.position = (int32_t)round(status.position*1000.f);
+    c.temperature = status.temperature;
+    c.torque      = status.torque * 1000.f;
     // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
     // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
     // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
@@ -453,6 +455,8 @@ void setup()
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
     response->printf("%s %d\n","target",channels[channel_id].target);
     response->printf("%s %d\n","position",channels[channel_id].position);
+    response->printf("%s %d\n","torque",channels[channel_id].torque);
+    response->printf("%s %d\n","temperature",channels[channel_id].temperature);
     response->printf("%s %d\n","enable",channels[channel_id].enabled);
     response->printf("%s %d\n","alarm",channels[channel_id].have_alarm);
     request->send(response);
