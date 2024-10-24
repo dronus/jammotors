@@ -122,7 +122,7 @@ struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
   int can_id;
 
-  DriverCybergear(int _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
+  DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
     for(uint8_t i=0; i<max_channels; i++)
       if(!can_handlers[i]) {
         can_handlers[i]=this;
@@ -135,6 +135,7 @@ struct DriverCybergear : public Driver{
     // initialize CyberGear on CAN bus
     cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
     cybergear.init_motor(MODE_POSITION);
+    cybergear.set_position_ref(0.0);
     Serial.println("Cybergear started.");
   };
 
@@ -147,16 +148,19 @@ struct DriverCybergear : public Driver{
     // execute move
     if(c.enabled) {
       cybergear.set_limit_speed(c.speed/1000.f);
-      cybergear.set_position_kp(c.pos_kp/1000.f);
+      // cybergear.set_position_kp(c.pos_kp/1000.f);
       cybergear.set_limit_current(c.accel/1000.f);
       cybergear.set_position_ref(c.target/1000.f);
     }
 
     // check motor state (handle messages for all CyberGear motors)
     // also updates motor status data that can be relayed to wifi clients then.
+    cybergear.request_status();
     check_alerts();
 
     XiaomiCyberGearStatus status = cybergear.get_status();
+    // Serial.printf("POS:%f V:%f T:%f temp:%d\n", status.position, status.speed, status.torque, status.temperature);
+
     c.position = (int32_t)round(status.position*1000.f);
     c.temperature = status.temperature;
     c.torque      = status.torque * 1000.f;
