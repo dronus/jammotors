@@ -50,8 +50,10 @@ struct Channel : public Params {
   P_int32_t (pos_kp, 0, 10000, 1000);
   P_int32_t (dmx_channel, 0, 255, 0);
   P_int32_t (scale, 0, 10000,  0);
+  P_int32_t (offset, -100000, 100000,  0);
   P_int32_t (osc_f, 0, 10000,  1000);
   P_int32_t (osc_a, 0, 100000, 0);
+  P_int32_t (osc_p, 0, 100000, 0);
   P_int32_t (random_d, 0, 100000, 1000);
   P_int32_t (random_rd,0, 100000, 1000);
   P_int32_t (random_a ,0, 10000, 0);
@@ -86,16 +88,16 @@ struct Channel : public Params {
     }
 
     // compute and set motion target
-    // set manual target (offset)
-    target = manual_target;
+    // set manual target (temporary offset) and stored offset.
+    target = manual_target + offset;
 
     // add artnet commanded target
     target += artnet_target;
    
     // add oscillatory movement 
-    osc_phase += osc_f * dt * 2.f * 3.14159f / 1000.f / 1000.f;
+    osc_phase += osc_f * dt * 2.f * (float)PI / 1000.f / 1000.f;
     osc_phase = fmod(osc_phase, ((float)PI * 2.f));
-    target += floor( osc_a * sin(osc_phase) );
+    target += floor( osc_a * sin(osc_phase + osc_p * 2.f * (float)PI / 1000.f) );
     
     // add random movement
     random_countdown -= dt;

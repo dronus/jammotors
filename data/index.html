@@ -43,9 +43,11 @@ h2 input { width: 1em;}
   <h2>Config</h2>
   <div>
     <h3>Preset Motion</h3>
+    Offset: <input id=offset  onchange="set(this)">
     <h4>Oscillate</h4> 
     Frequency: <input id=osc_f  onchange="set(this)">
     Amplitude: <input id=osc_a onchange="set(this)">
+    Phase:     <input id=osc_p onchange="set(this)">
     <h4>Random</h4>
     Static delay: <input id=random_d  onchange="set(this)">
     Random delay: <input id=random_rd onchange="set(this)">
