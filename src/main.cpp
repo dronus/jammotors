@@ -283,7 +283,8 @@ char* global_params[] = {
 // Maybe because of broad bandwith which collides with every other WiFi?
 void switchWifiAp() {
   Serial.println("Switching WiFi to AP mode.");
-  WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
+//  WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
+  WiFi.softAP(prefs.getString("name","Motor").c_str());
   Serial.print(WiFi.softAPIP());
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -382,10 +383,12 @@ void setup()
   // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
   WiFi.setHostname(prefs.getString("name","Motor").c_str());
+
   if(prefs.getString("psk","")=="")
     WiFi.begin(prefs.getString("ssid"));
   else
     WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
+  
   //ESPServerWifiModeClient
   int cycle = 1;
   while ( WiFi.status() != WL_CONNECTED )
