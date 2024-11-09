@@ -56,7 +56,7 @@ struct Channel : public Params {
   P_int32_t (osc_p, 0, 100000, 0);
   P_int32_t (random_d, 0, 100000, 1000);
   P_int32_t (random_rd,0, 100000, 1000);
-  P_int32_t (random_a ,0, 10000, 0);
+  P_int32_t (random_a ,0, 200000, 0);
   P_end;
 
   int enabled, last_enabled=false;
