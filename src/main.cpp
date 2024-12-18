@@ -57,6 +57,7 @@ struct Channel : public Params {
   P_int32_t (random_d, 0, 100000, 1000);
   P_int32_t (random_rd,0, 100000, 1000);
   P_int32_t (random_a ,0, 200000, 0);
+  P_int32_t (ik_a ,0, 1000, 0);
   P_end;
 
   int enabled, last_enabled=false;
@@ -65,6 +66,7 @@ struct Channel : public Params {
   int32_t position = 0, torque = 0, temperature = 0;
   int32_t manual_target=0;
   int32_t artnet_target=0;
+  float ik_target;
   float osc_phase = 0;
   int32_t random_countdown = 0;
   int32_t random_target = 0;
@@ -106,6 +108,10 @@ struct Channel : public Params {
       random_countdown = random_d + random(random_rd);
     }
     target += random_target;
+    
+    // add IK movement
+    if(ik_a != 0)
+      target += ik_a * ik_target;
 
     if(driver)
       driver->update(*this, dt);
@@ -543,6 +549,29 @@ void setup()
   digitalWrite(statusLedPin,HIGH);
 }
 
+void update_ik() {
+  if(channels[0].ik_a == 0 && channels[1].ik_a == 0) 
+    // for testing, enable IK even if only a single channel has IK mixed in.
+    return;
+
+  float x = global_params.ik_x, y = global_params.ik_y;
+
+  // define shoulder - elbow - target triangle
+  float a = global_params.ik_length_a; // upper arm
+  float b = global_params.ik_length_b; // lower arm
+  float c = sqrtf(x*x+y*y); // span to target
+  float pi = 3.1415926f;
+
+  // get elbow angle by triangle cosine equation 
+  float gamma = acos ((a*a + b*b - c*c) / (2 * a * b)) - pi;
+  
+  // get shoulder angle by triangle cosine equation and atan offset
+  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) + atan2(y,x);
+
+  channels[0].ik_target = beta  / (float)pi;
+  channels[1].ik_target = gamma / (float)pi;
+}
+
 uint32_t last_time;
 
 void loop() 
@@ -558,8 +587,10 @@ void loop()
   last_time = time;
   //Serial.println(dt);
 
+  update_ik();
+
   for(Channel& c : channels)
     c.update(dt);
- 
+  
   delay(10);
 }

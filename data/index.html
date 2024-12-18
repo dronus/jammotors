@@ -37,12 +37,8 @@ h2 input { width: 1em;}
     Home to target: <input id=home onchange="set(this)">
     Reset position to: <input id=set_position onchange="set(this)">
   </div>
-</div>
-
-<div>
-  <h2>Config</h2>
   <div>
-    <h3>Preset Motion</h3>
+    <h3>Motion sources</h3>
     Offset: <input id=offset  onchange="set(this)">
     <h4>Oscillate</h4> 
     Frequency: <input id=osc_f  onchange="set(this)">
@@ -52,6 +48,11 @@ h2 input { width: 1em;}
     Static delay: <input id=random_d  onchange="set(this)">
     Random delay: <input id=random_rd onchange="set(this)">
     Amplitude:    <input id=random_a  onchange="set(this)">
+    <h4>ArtNet DMX Input</h4>
+    DMX Channel:<input id=dmx_channel onchange="set(this)">
+    DMX Scale:    <input id=scale  onchange="set(this)">
+    <h4>Inverse Kinematic Motion</h4>
+    Weight ( of 1000): <input id=ik_a onchange="set(this)">
   </div>
   <div>
     <h3>Motion Limits</h3>
@@ -59,12 +60,15 @@ h2 input { width: 1em;}
     Accel:    <input id=accel  onchange="set(this)">
     Pos kp:    <input id=pos_kp  onchange="set(this)">
   </div>
-  <div>
-    <h3>ArtNet DMX Input</h3>
-    DMX Channel:<input id=dmx_channel onchange="set(this)">
-    DMX Scale:    <input id=scale  onchange="set(this)">
+</div>
+
+<div>
+  <h2>Global</h2>
+  <div id=global_config>
+    <h3>Motion</h3>
   </div>
   <div>
+    <h3>Network</h3>
     Name: <input id=name onchange="set(this)">
     WiFi SSID:<input id=ssid onchange="set(this)">
     WiFi PSK: <input type=password id=psk  onchange="set(this)">
