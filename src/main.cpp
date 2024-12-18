@@ -269,7 +269,7 @@ Channel channels[max_channels] = {
   Channel()
 };
 
-char* global_params[] = {
+char* global_string_params[] = {
   "name",
   "ssid",
   "psk"
@@ -439,7 +439,7 @@ void setup()
       }
       
     // check for global parameters
-    for(char* param : global_params)
+    for(char* param : global_string_params)
       if (request->hasParam(param) )
         prefs.putString(param, request->getParam(param)->value());
 
@@ -480,7 +480,7 @@ void setup()
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     
     // send global configuration
-    for(char* param : global_params)
+    for(char* param : global_string_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
       
     // send current channel configuration
