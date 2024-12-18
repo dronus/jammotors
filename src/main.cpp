@@ -275,6 +275,14 @@ char* global_string_params[] = {
   "psk"
 };
 
+struct GlobalParams : public Params {
+  P_int32_t (ik_length_a, 0, 1000, 500);
+  P_int32_t (ik_length_b, 0, 1000, 500);
+  P_int32_t (ik_x,      -1000, 1000, 0);
+  P_int32_t (ik_y,      -1000, 1000, 0);
+  P_end;
+} global_params;
+
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
 // configured one is unavailable.
@@ -334,6 +342,41 @@ void check_alerts(){
   }
 }
 
+void readPrefs(Params* params, int16_t channel_id = -1) {
+  for(Param* p = params->getParams(); p; p=p->next()) {
+    char prefs_name[32];
+    if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
+      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
+    else
+      snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
+
+    Serial.print(prefs_name);Serial.print(" ");
+    if(prefs.isKey(prefs_name)) {
+      int val = prefs.getInt(prefs_name); 
+      Serial.print(val);
+      p->set(val);
+    } else {
+      Serial.print(" use default ");
+      Serial.print(p->get());
+    }
+    Serial.println();
+  }
+}
+
+void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *request) {
+  for(Param* p = params->getParams(); p ; p = p->next())
+    if (request->hasParam(p->desc->name) ) {
+      int32_t value = request->getParam(p->desc->name)->value().toInt();
+      p->set(value);
+      char prefs_name[32];
+      if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
+        snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
+      else
+        snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
+      prefs.putInt(prefs_name, value);
+    }
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -352,25 +395,14 @@ void setup()
   prefs.begin("motor");
   Serial.println("Prefs started.");
 
+  readPrefs(&global_params);
+
   for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
     Channel& channel = channels[channel_id];
     
     // read preferences
-    for(Param* p = channel.getParams(); p; p=p->next()) {
-      char prefs_name[32];
-      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
-      
-      Serial.print(prefs_name);Serial.print(" ");
-      if(prefs.isKey(prefs_name)) {
-        int val = prefs.getInt(prefs_name); 
-        Serial.print(val);
-        p->set(val);
-      } else {
-        Serial.print(" use default ");
-        Serial.print(p->get());
-      }
-      Serial.println();
-    }
+    readPrefs(&channel,channel_id);
+
     // initialize
     channel.init();
   }
@@ -429,16 +461,12 @@ void setup()
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
 
     // handle persistent per-channel parameters
+
+    readFromRequest(&channels[channel_id], channel_id, request);
     
-    for(Param* p = channels[channel_id].getParams(); p ; p = p->next())
-      if (request->hasParam(p->desc->name) ) {
-        p->set(request->getParam(p->desc->name)->value().toInt());
-        char prefs_name[32];
-        snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
-        prefs.putInt(prefs_name, request->getParam(p->desc->name)->value().toInt());
-      }
-      
     // check for global parameters
+    readFromRequest(&global_params, -1, request);
+    // check for global string parameters
     for(char* param : global_string_params)
       if (request->hasParam(param) )
         prefs.putString(param, request->getParam(param)->value());
@@ -482,7 +510,10 @@ void setup()
     // send global configuration
     for(char* param : global_string_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
-      
+
+    for(Param* p = global_params.getParams(); p; p = p->next())
+      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+
     // send current channel configuration
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
     for(Param* p = channels[channel_id].getParams(); p; p = p->next())

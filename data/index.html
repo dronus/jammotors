@@ -85,6 +85,17 @@ function set(el) {
 
 function show(id, value) {
   let el = document.getElementById(id);
+  if(!el) {
+    let container = document.getElementById('global_config');
+    let label = document.createElement('span');
+    label.innerText = id;
+    container.append(label);
+    el = document.createElement('input');
+    el.setAttribute('id',id);
+    el.setAttribute('onchange','set(this)');
+    el.setAttribute('size','6');
+    container.append(el);
+  }
   if(el && el != document.activeElement)
     el.value = value;
 }
