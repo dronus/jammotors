@@ -4,6 +4,8 @@
 #include <WiFi.h>
 #include <DNSServer.h>
 #include <ArduinoOTA.h>
+#include <WiFiUdp.h>
+#include <MicroOscUdp.h>
 #include <ArtnetnodeWifi.h>
 #include <Preferences.h>
 #include "param.h"
@@ -11,6 +13,7 @@
 #include <ESP32Servo.h>
 #include "driver/twai.h"
 #include "xiaomi_cybergear_driver.h"
+
 
 #define statusLedPin 2
 
@@ -24,6 +27,13 @@ Preferences prefs;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
 DNSServer dnsServer;
+
+
+#include <WiFiUdp.h>
+WiFiUDP udpIn;
+unsigned int oscInPort = 8888;
+MicroOscUdp<1024> oscReceiver(&udpIn, IPAddress(0,0,0,0), 0);
+
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 
 int homing = 0;
@@ -544,6 +554,10 @@ void setup()
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
+
+  // start OSC Udp receiver
+  udpIn.begin(oscInPort);
+  
  
   // light status led
   digitalWrite(statusLedPin,HIGH);
@@ -572,6 +586,18 @@ void update_ik() {
   channels[1].ik_target = gamma / (float)pi;
 }
 
+
+void oscMessageParser( MicroOscMessage& receivedOscMessage) {
+  Serial.printf("OSC in : %s",receivedOscMessage.buffer);
+
+  if ( receivedOscMessage.checkOscAddress("/note") ) {
+    Serial.println("OSC Note in");
+    const uint8_t* midi;
+    receivedOscMessage.nextAsMidi(&midi);
+    Serial.printf("%d %d %d %d",midi[0],midi[1],midi[2],midi[3]);
+  }
+}
+
 uint32_t last_time;
 
 void loop() 
@@ -580,6 +606,7 @@ void loop()
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
   artnetnode.read();
+  oscReceiver.onOscMessageReceived( oscMessageParser );
 
   // compute delta time
   uint32_t time = millis();
