@@ -136,7 +136,7 @@ struct DriverCybergear;
 DriverCybergear* can_handlers[max_channels];
 struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
-  int can_id;
+  uint8_t can_id;
 
   DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
     for(uint8_t i=0; i<max_channels; i++)
@@ -184,6 +184,11 @@ struct DriverCybergear : public Driver{
     // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
     // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
   };
+  
+  void writeId(uint8_t new_can_id) {
+    Serial.printf("Set new CAN ID %d for motor on CAN ID %d\n", new_can_id, can_id);
+    cybergear.set_motor_can_id(new_can_id);
+  }
 };
 
 struct DriverServo : public Driver {
@@ -272,6 +277,7 @@ struct DriverStepper : public Driver {
 };
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
+  Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
   if(driver_id == 1) return new DriverStepper();
   if(driver_id == 2) return new DriverServo(pin_id);
   if(driver_id == 3) return new DriverPWM(pin_id);
@@ -486,6 +492,11 @@ void setup()
     for(char* param : global_string_params)
       if (request->hasParam(param) )
         prefs.putString(param, request->getParam(param)->value());
+
+    if (request->hasParam("set_can_id") ) {
+      uint8_t zahl = request->getParam("set_can_id")->value().toInt();
+      static_cast<DriverCybergear*>(channels[channel_id].driver)->writeId(zahl);
+    }
 
     // handle instantaneous commands
     if (request->hasParam("target") )
