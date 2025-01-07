@@ -93,6 +93,8 @@ function show(id, value) {
   let el = document.getElementById(id);
   if(!el) {
     let container = document.getElementById('global_config');
+    if(container.lastChild && container.lastChild.id && container.lastChild.id.substr(0,4) != id.substr(0,4) )
+      container.append(document.createElement("hr"));
     let label = document.createElement('span');
     label.innerText = id;
     container.append(label);
@@ -123,6 +125,15 @@ function update_channel() {
   fetch_and_show("/config");
 }
 update_channel();
+
+document.body.addEventListener('keydown',(e) => {
+  if(e.target != document.body) return;
+  let channel = e.key.charCodeAt(0) - "a".charCodeAt(0);
+  if(channel >= 0 && channel < 4) {
+    document.querySelector('#channel_id').value = channel;
+    update_channel();
+  }
+});
 
 </script>
 
