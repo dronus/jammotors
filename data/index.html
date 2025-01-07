@@ -33,11 +33,6 @@ h2 input { width: 1em;}
     Enable on Power On: <input id=poweron_en onchange="set(this)">
   </div>
   <div>
-  <h3>Homing</h3>
-    Home to target: <input id=home onchange="set(this)">
-    Reset position to: <input id=set_position onchange="set(this)">
-    Set CAN ID: <input id=set_can_id onchange="set(this)">
-  </div>
   <div>
     <h3>Motion sources</h3>
     Offset: <input id=offset  onchange="set(this)">
@@ -58,9 +53,14 @@ h2 input { width: 1em;}
   <div>
     <h3>Motion Limits</h3>
     Speed:    <input id=speed  onchange="set(this)">
-    Accel:    <input id=accel  onchange="set(this)">
+    Accel / Torque:    <input id=accel  onchange="set(this)">
     Pos kp:    <input id=pos_kp  onchange="set(this)">
     Pos kd:    <input id=pos_kd  onchange="set(this)">
+  </div>
+  <h3>Misc</h3>
+    Home to target: <input id=home onchange="set(this)">
+    Reset position to: <input id=set_position onchange="set(this)">
+    Write new CAN ID: <input id=set_can_id onchange="set(this)">
   </div>
 </div>
 
