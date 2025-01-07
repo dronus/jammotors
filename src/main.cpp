@@ -38,7 +38,7 @@ FastAccelStepperEngine engine = FastAccelStepperEngine();
 
 int homing = 0;
 
-const uint8_t max_channels = 2;
+const uint8_t max_channels = 4;
 
 struct Channel;
 
@@ -286,10 +286,7 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   return NULL;
 }
 
-Channel channels[max_channels] = {
-  Channel(),
-  Channel()
-};
+Channel channels[max_channels];
 
 char* global_string_params[] = {
   "name",
