@@ -299,11 +299,20 @@ char* global_string_params[] = {
 };
 
 struct GlobalParams : public Params {
-  P_int32_t (ik_length_a, 0, 1000, 500);
-  P_int32_t (ik_length_b, 0, 1000, 500);
-  P_int32_t (ik_x,      -1000, 1000, 0);
-  P_int32_t (ik_y,      -1000, 1000, 0);
-  P_int32_t (ik_z,      -1000, 1000, 0);
+  P_int32_t (ik_length_a,    0,  1000, 330);
+  P_int32_t (ik_length_b,    0,  1000, 390);
+  P_int32_t (ik_x,       -1000,  1000, 0);
+  P_int32_t (ik_x_osc_a, -1000,  1000, 0);
+  P_int32_t (ik_x_osc_f,     0, 10000, 1000);
+  P_int32_t (ik_x_osc_fb,    0,  2000, 0);
+  P_int32_t (ik_y,       -1000,  1000, 0);
+  P_int32_t (ik_y_osc_a, -1000,  1000, 0);
+  P_int32_t (ik_y_osc_f,     0, 10000, 1000);
+  P_int32_t (ik_y_osc_fb,    0,  2000, 0);
+  P_int32_t (ik_z,       -1000,  1000, 720);
+  P_int32_t (ik_z_osc_a, -1000,  1000, 0);
+  P_int32_t (ik_z_osc_f,     0, 10000, 1000);
+  P_int32_t (ik_z_osc_fb,    0,  2000, 0);
   P_end;
 } global_params;
 
@@ -576,14 +585,27 @@ void setup()
   digitalWrite(statusLedPin,HIGH);
 }
 
-void update_ik() {
+float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
+
+  phase += f * dt * 2.f * (float)PI / 1000.f / 1000.f;
+  phase = fmod(phase, ((float)PI * 2.f));
+
+  return o + a * sin( phase + fb / 1000.f * sin(phase) );
+}
+
+
+float ik_phase_x=0, ik_phase_y=0, ik_phase_z=0;
+
+void update_ik(uint32_t dt) {
 
   if(channels[0].ik_a == 0 && channels[1].ik_a == 0 && channels[2].ik_a == 0) 
     // for testing, enable IK even if only a single channel has IK mixed in.
     return;
 
-  float x = global_params.ik_x, y = global_params.ik_y, z = global_params.ik_z;
-
+  float x = fm_osc(global_params.ik_x, global_params.ik_x_osc_a, global_params.ik_x_osc_f, global_params.ik_x_osc_fb, dt, ik_phase_x);
+  float y = fm_osc(global_params.ik_y, global_params.ik_y_osc_a, global_params.ik_y_osc_f, global_params.ik_y_osc_fb, dt, ik_phase_y);
+  float z = fm_osc(global_params.ik_z, global_params.ik_z_osc_a, global_params.ik_z_osc_f, global_params.ik_z_osc_fb, dt, ik_phase_z);
+  
   // define shoulder - target angle
   if(y != 0 || z != 0) {
     float alpha = atan2(y,z);
@@ -637,7 +659,7 @@ void loop()
   last_time = time;
   //Serial.println(dt);
 
-  update_ik();
+  update_ik(dt);
 
   for(Channel& c : channels)
     c.update(dt);
