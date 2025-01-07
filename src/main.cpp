@@ -23,6 +23,8 @@
 uint8_t CYBERGEAR_CAN_ID = 0x7F;
 uint8_t MASTER_CAN_ID = 0x00;
 
+const float pi = 3.1415926f;
+
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer *httpServer;
@@ -68,7 +70,7 @@ struct Channel : public Params {
   P_int32_t (random_d, 0, 100000, 1000);
   P_int32_t (random_rd,0, 100000, 1000);
   P_int32_t (random_a ,0, 200000, 0);
-  P_int32_t (ik_a ,0, 1000, 0);
+  P_int32_t (ik_a ,-100000, 100000, 0);
   P_end;
 
   int enabled, last_enabled=false;
@@ -301,6 +303,7 @@ struct GlobalParams : public Params {
   P_int32_t (ik_length_b, 0, 1000, 500);
   P_int32_t (ik_x,      -1000, 1000, 0);
   P_int32_t (ik_y,      -1000, 1000, 0);
+  P_int32_t (ik_z,      -1000, 1000, 0);
   P_end;
 } global_params;
 
@@ -574,26 +577,36 @@ void setup()
 }
 
 void update_ik() {
-  if(channels[0].ik_a == 0 && channels[1].ik_a == 0) 
+
+  if(channels[0].ik_a == 0 && channels[1].ik_a == 0 && channels[2].ik_a == 0) 
     // for testing, enable IK even if only a single channel has IK mixed in.
     return;
 
-  float x = global_params.ik_x, y = global_params.ik_y;
+  float x = global_params.ik_x, y = global_params.ik_y, z = global_params.ik_z;
+
+  // define shoulder - target angle
+  if(y != 0 || z != 0) {
+    float alpha = atan2(y,z);
+    channels[0].ik_target = alpha  / (float)pi;  
+  } // if y and z are zero, just keep last rotation angle.
 
   // define shoulder - elbow - target triangle
   float a = global_params.ik_length_a; // upper arm
   float b = global_params.ik_length_b; // lower arm
-  float c = sqrtf(x*x+y*y); // span to target
-  float pi = 3.1415926f;
+  float c = sqrtf(x*x+y*y+z*z); // span to target
 
   // get elbow angle by triangle cosine equation 
+  if(c>a+b) return; // point out of reach - arm to short.
   float gamma = acos ((a*a + b*b - c*c) / (2 * a * b)) - pi;
   
   // get shoulder angle by triangle cosine equation and atan offset
-  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) + atan2(y,x);
+  float d_yz = sqrtf(y*y+z*z); // distance in yz-plane to x-axis
+  if(b>a+c) return; // point out of reach - lower arm to long.
+  if(x==0 && d_yz==0) return; // point 0,0,0 undefined.
+  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) + atan2(x,d_yz);
 
-  channels[0].ik_target = beta  / (float)pi;
-  channels[1].ik_target = gamma / (float)pi;
+  channels[1].ik_target = beta  / (float)pi;
+  channels[2].ik_target = gamma / (float)pi;
 }
 
 
