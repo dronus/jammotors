@@ -57,7 +57,8 @@ struct Channel : public Params {
   P_int32_t (poweron_en, 0, 1, 0);
   P_int32_t (speed, 0, 100000, 10000);
   P_int32_t (accel, 0, 100000, 10000);
-  P_int32_t (pos_kp, 0, 10000, 1000);
+  P_int32_t (pos_kp, 0, 500000, 1000);
+  P_int32_t (pos_kd, 0, 5000, 100);
   P_int32_t (dmx_channel, 0, 255, 0);
   P_int32_t (scale, 0, 10000,  0);
   P_int32_t (offset, -100000, 100000,  0);
@@ -150,7 +151,7 @@ struct DriverCybergear : public Driver{
   void init(Channel& c) {
     // initialize CyberGear on CAN bus
     cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-    cybergear.init_motor(MODE_POSITION);
+    cybergear.init_motor(MODE_MOTION);
     cybergear.set_position_ref(0.0);
     Serial.println("Cybergear started.");
   };
@@ -163,10 +164,11 @@ struct DriverCybergear : public Driver{
       cybergear.enable_motor();
     // execute move
     if(c.enabled) {
-      cybergear.set_limit_speed(c.speed/1000.f);
+      // cybergear.set_limit_speed(c.speed/1000.f);
       // cybergear.set_position_kp(c.pos_kp/1000.f);
-      cybergear.set_limit_current(c.accel/1000.f);
-      cybergear.set_position_ref(c.target/1000.f);
+      cybergear.set_limit_torque(c.accel/1000.f);
+      // cybergear.set_position_ref(c.target/1000.f);
+      cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
     }
 
     // check motor state (handle messages for all CyberGear motors)
