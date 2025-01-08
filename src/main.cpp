@@ -324,9 +324,10 @@ struct GlobalParams : public Params {
 // Maybe because of broad bandwith which collides with every other WiFi?
 void switchWifiAp() {
   Serial.println("Switching WiFi to AP mode.");
+  WiFi.disconnect();
 //  WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
   WiFi.softAP(prefs.getString("name","Motor").c_str());
-  Serial.print(WiFi.softAPIP());
+  Serial.printf("AP created: %s, %s \n",prefs.getString("name","Motor").c_str(),WiFi.softAPIP().toString().c_str());
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
@@ -417,6 +418,11 @@ void setup()
 
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
+
+  // make sure WiFi won't autoconnect and store connections on itself
+  WiFi.disconnect();
+  WiFi.mode(WIFI_OFF);
+  WiFi.persistent(false);
 
   // initialize LittleFS on flash for persitent parameter storage by Prefs library
   bool spiffsBeginSuccess = LittleFS.begin();
