@@ -607,9 +607,9 @@ void update_ik(uint32_t dt) {
   float z = fm_osc(global_params.ik_z, global_params.ik_z_osc_a, global_params.ik_z_osc_f, global_params.ik_z_osc_fb, dt, ik_phase_z);
   
   // define shoulder - target angle
-  if(y != 0 || z != 0) {
-    float alpha = atan2(y,z);
-    channels[0].ik_target = alpha  / (float)pi;  
+  if(y != 0 || x != 0) {
+    float alpha = atan2(x,y);
+    channels[0].ik_target = alpha  / (float)pi;
   } // if y and z are zero, just keep last rotation angle.
 
   // define shoulder - elbow - target triangle
@@ -622,10 +622,10 @@ void update_ik(uint32_t dt) {
   float gamma = acos ((a*a + b*b - c*c) / (2 * a * b)) - pi;
   
   // get shoulder angle by triangle cosine equation and atan offset
-  float d_yz = sqrtf(y*y+z*z); // distance in yz-plane to x-axis
+  float d_xy = sqrtf(x*x+y*y); // distance in xy-plane to z-axis
   if(b>a+c) return; // point out of reach - lower arm to long.
-  if(x==0 && d_yz==0) return; // point 0,0,0 undefined.
-  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) + atan2(x,d_yz);
+  if(z==0 && d_xy==0) return; // point 0,0,0 undefined.
+  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) - atan2(d_xy,z);
 
   channels[1].ik_target = beta  / (float)pi;
   channels[2].ik_target = gamma / (float)pi;
