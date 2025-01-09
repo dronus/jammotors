@@ -13,8 +13,10 @@ struct DriverPWM : public Driver {
   };
 
   void update(Channel& c, uint32_t dt) {
-    analogWrite(pin, max(0, min(1023,c.target)));
-    c.position = c.target; // no real feedback possible
+    if(c.enabled) {
+      analogWrite(pin, max(0, min(1023,c.target)));
+      c.position = c.target; // no real feedback possible
+    }
   };
 };
 
