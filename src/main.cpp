@@ -8,22 +8,19 @@
 #include <MicroOscUdp.h>
 #include <ArtnetnodeWifi.h>
 #include <Preferences.h>
-#include "param.h"
-#include "FastAccelStepper.h"
-#include <ESP32Servo.h>
-#include "driver/twai.h"
-#include "xiaomi_cybergear_driver.h"
 
-
-#define statusLedPin 2
-
-// pins and ids for Cybergear CAN bus ("TWAI" in ESP32)
-#define RX_PIN 4
-#define TX_PIN 5
-uint8_t CYBERGEAR_CAN_ID = 0x7F;
-uint8_t MASTER_CAN_ID = 0x00;
-
+const uint8_t max_channels = 4;
+const uint32_t statusLedPin = 2;
 const float pi = 3.1415926f;
+
+#include "param.h"
+#include "driver.h"
+#include "channel.h"
+#include "driver_stepper.h"
+#include "driver_servo.h"
+#include "driver_pwm.h"
+#include "driver_cybergear.h"
+
 
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
@@ -36,249 +33,10 @@ WiFiUDP udpIn;
 unsigned int oscInPort = 8888;
 MicroOscUdp<1024> oscReceiver(&udpIn, IPAddress(0,0,0,0), 0);
 
-FastAccelStepperEngine engine = FastAccelStepperEngine();
 
 int homing = 0;
 
-const uint8_t max_channels = 4;
-
-struct Channel;
-
-struct Driver {
-  virtual void init(Channel& c) = 0;
-  virtual void update(Channel& c, uint32_t dt) = 0;
-  virtual ~Driver(){};
-};
-
-Driver* createDriver(uint8_t driver_id,uint8_t pin_id);
-
-struct Channel : public Params {
-
-  P_uint8_t (driver_id, 0, 0xFF, 0);
-  P_uint8_t (pin_id, 0, 0xFF, 0);
-  P_int32_t (poweron_en, 0, 1, 0);
-  P_int32_t (speed, 0, 100000, 10000);
-  P_int32_t (accel, 0, 100000, 10000);
-  P_int32_t (pos_kp, 0, 500000, 1000);
-  P_int32_t (pos_kd, 0, 5000, 100);
-  P_int32_t (dmx_channel, 0, 255, 0);
-  P_int32_t (scale, 0, 10000,  0);
-  P_int32_t (offset, -100000, 100000,  0);
-  P_int32_t (osc_f, 0, 10000,  1000);
-  P_int32_t (osc_a, 0, 100000, 0);
-  P_int32_t (osc_p, 0, 100000, 0);
-  P_int32_t (random_d, 0, 100000, 1000);
-  P_int32_t (random_rd,0, 100000, 1000);
-  P_int32_t (random_a ,0, 200000, 0);
-  P_int32_t (ik_a ,-100000, 100000, 0);
-  P_end;
-
-  int enabled, last_enabled=false;
-  int have_alarm;
-  int32_t target = 0;
-  int32_t position = 0, torque = 0, temperature = 0;
-  int32_t manual_target=0;
-  int32_t artnet_target=0;
-  float ik_target;
-  float osc_phase = 0;
-  int32_t random_countdown = 0;
-  int32_t random_target = 0;
-  uint8_t last_driver_id=0, last_pin_id=0;
-  Driver* driver=NULL;
-
-  void init() {
-    enabled = poweron_en;
-  }
-  
-  void update(uint32_t dt) {
-
-    // check if driver is still up-to-date 
-    // and reinitialize if needed
-    if(driver_id != last_driver_id || pin_id != last_pin_id) {
-      if(driver) delete driver;
-      driver = createDriver(driver_id,pin_id);
-      last_driver_id = driver_id;
-      last_pin_id = pin_id;
-      if(driver) driver->init(*this);
-    }
-
-    // compute and set motion target
-    // set manual target (temporary offset) and stored offset.
-    target = manual_target + offset;
-
-    // add artnet commanded target
-    target += artnet_target;
-   
-    // add oscillatory movement 
-    osc_phase += osc_f * dt * 2.f * (float)PI / 1000.f / 1000.f;
-    osc_phase = fmod(osc_phase, ((float)PI * 2.f));
-    target += floor( osc_a * sin(osc_phase + osc_p * 2.f * (float)PI / 1000.f) );
-    
-    // add random movement
-    random_countdown -= dt;
-    if(random_countdown < 0) {
-      random_target    = random(random_a);
-      random_countdown = random_d + random(random_rd);
-    }
-    target += random_target;
-    
-    // add IK movement
-    if(ik_a != 0)
-      target += ik_a * ik_target;
-
-    if(driver)
-      driver->update(*this, dt);
-    
-    last_enabled = enabled;
-  }
-};
-
-void check_alerts();
-
-struct DriverCybergear;
-DriverCybergear* can_handlers[max_channels];
-struct DriverCybergear : public Driver{
-  XiaomiCyberGearDriver cybergear;
-  uint8_t can_id;
-
-  DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
-    for(uint8_t i=0; i<max_channels; i++)
-      if(!can_handlers[i]) {
-        can_handlers[i]=this;
-        break;
-      }
-  }
-  virtual ~DriverCybergear() {cybergear.stop_motor();};
-
-  void init(Channel& c) {
-    // initialize CyberGear on CAN bus
-    cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
-    cybergear.init_motor(MODE_MOTION);
-    cybergear.set_position_ref(0.0);
-    Serial.println("Cybergear started.");
-  };
-
-  void update(Channel& c, uint32_t dt) {
-    // update enable state
-    if(!c.enabled && c.last_enabled)
-      cybergear.stop_motor();
-    if(c.enabled && !c.last_enabled)
-      cybergear.enable_motor();
-    // execute move
-    if(c.enabled) {
-      // cybergear.set_limit_speed(c.speed/1000.f);
-      // cybergear.set_position_kp(c.pos_kp/1000.f);
-      cybergear.set_limit_torque(c.accel/1000.f);
-      // cybergear.set_position_ref(c.target/1000.f);
-      cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
-    }
-
-    // check motor state (handle messages for all CyberGear motors)
-    // also updates motor status data that can be relayed to wifi clients then.
-    cybergear.request_status();
-    check_alerts();
-
-    XiaomiCyberGearStatus status = cybergear.get_status();
-    // Serial.printf("POS:%f V:%f T:%f temp:%d\n", status.position, status.speed, status.torque, status.temperature);
-
-    c.position = (int32_t)round(status.position*1000.f);
-    c.temperature = status.temperature;
-    c.torque      = status.torque * 1000.f;
-    // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
-    // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
-    // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
-  };
-  
-  void writeId(uint8_t new_can_id) {
-    Serial.printf("Set new CAN ID %d for motor on CAN ID %d\n", new_can_id, can_id);
-    cybergear.set_motor_can_id(new_can_id);
-  }
-};
-
-struct DriverServo : public Driver {
-  Servo servo;
-  int pin;
-
-  DriverServo(int _pin){ pin=_pin; };
-  virtual ~DriverServo() { servo.detach(); }
-
-  void init(Channel& c) {
-    servo.setPeriodHertz(50);// Standard 50hz servo
-    Serial.println("Servo started.");
-  };
-
-  void update(Channel& c, uint32_t dt) {
-    if(!c.enabled && c.last_enabled)
-      servo.detach();
-    if(c.enabled && !c.last_enabled)
-      servo.attach(pin, 500, 2400);
-
-    if(c.enabled) {
-      servo.write(1000 + max(0,c.target));
-      c.position = c.target; // no real feedback possible
-    }
-  };
-};
-
-struct DriverPWM : public Driver {
-  ESP32PWM pwm;
-  int pin;
-
-  DriverPWM(int _pin){ pin=_pin; };
-  virtual ~DriverPWM() { analogWrite(pin,0);}
-
-  void init(Channel& c) {
-    analogWriteResolution(10);
-    Serial.println("PWM started.");
-  };
-
-  void update(Channel& c, uint32_t dt) {
-    analogWrite(pin, max(0, min(1023,c.target)));
-    c.position = c.target; // no real feedback possible
-  };
-};
-
-struct DriverStepper : public Driver {
-  FastAccelStepper *stepper = NULL;
-
-  const uint8_t pinStep = 16, pinDir = 17, pinEnable = 21, pinAlarm = 22;
-
-  virtual ~DriverStepper() {
-    if(stepper) {
-      stepper->forceStop();
-      stepper->detachFromPin();
-      delete stepper;
-      pinMode(pinEnable,INPUT);
-    }
-  }
-
-  // simple external pin handler - the FastAccelStepper original one does not like other interrupts.
-  static bool setExternalPin(uint8_t pin, uint8_t value) {
-    pin = pin & ~PIN_EXTERNAL_FLAG;
-    pinMode(pin, OUTPUT);
-    bool oldValue = digitalRead(pin);
-    digitalWrite(pin, value);
-    return oldValue;
-  }
-
-  void init(Channel& c) {
-    // start stepper driver
-    engine.init();
-    stepper = engine.stepperConnectToPin(pinStep, DRIVER_MCPWM_PCNT);
-    stepper->setDirectionPin( pinDir + PIN_EXTERNAL_FLAG ); // use external pin handler
-    engine.setExternalCallForPin(DriverStepper::setExternalPin);
-    pinMode(pinEnable, OUTPUT);
-    Serial.println("Stepper started.");
-  };
-
-  void update(Channel& c, uint32_t dt) {
-    digitalWrite(pinEnable, c.enabled);
-    stepper->setSpeedInHz(c.speed);
-    stepper->setAcceleration(c.accel);
-    stepper->moveTo(c.target);
-    c.position = stepper->getCurrentPosition();
-  };
-};
+Channel channels[max_channels];
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -289,8 +47,6 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
 
   return NULL;
 }
-
-Channel channels[max_channels];
 
 char* global_string_params[] = {
   "name",
@@ -319,61 +75,15 @@ struct GlobalParams : public Params {
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
 // configured one is unavailable.
-// TODO dosn't work stable for now - often no DHCP on this one fails 
-// and no IP address is obtained. 
-// Maybe because of broad bandwith which collides with every other WiFi?
 void switchWifiAp() {
   Serial.println("Switching WiFi to AP mode.");
   WiFi.disconnect();
-//  WiFi.softAP(prefs.getString("name","Motor").c_str(), "motorkraft3000");
   WiFi.softAP(prefs.getString("name","Motor").c_str());
   Serial.printf("AP created: %s, %s \n",prefs.getString("name","Motor").c_str(),WiFi.softAPIP().toString().c_str());
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
   dnsServer.start(53, "*", WiFi.softAPIP());
-}
-
-// receive incoming CAN messages from CyberGear motor and forward them to driver
-static void handle_rx_message(twai_message_t& message) {
-  uint8_t can_id = (message.identifier & 0xFF00) >> 8;
-  for(DriverCybergear* dcg : can_handlers)
-    if (dcg && can_id == dcg->can_id)
-      dcg->cybergear.process_message(message);
-}
-
-// check alerts from CAN bus, receive incoming messages from CyberGear motor
-void check_alerts(){
-  // Check if alert happened
-  uint32_t alerts_triggered;
-  twai_read_alerts(&alerts_triggered, pdMS_TO_TICKS(1000));
-  twai_status_info_t twai_status;
-  twai_get_status_info(&twai_status);
-
-  // Handle alerts
-  if (alerts_triggered & TWAI_ALERT_ERR_PASS) {
-    channels[0].have_alarm = true;
-    channels[0].enabled = false;
-    Serial.println("Alert: TWAI controller has become error passive.");
-  }
-  if (alerts_triggered & TWAI_ALERT_BUS_ERROR) {
-    Serial.println("Alert: A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus.");
-    Serial.printf("Bus error count: %d\n", twai_status.bus_error_count);
-  }
-  if (alerts_triggered & TWAI_ALERT_TX_FAILED) {
-    Serial.println("Alert: The Transmission failed.");
-    Serial.printf("TX buffered: %d\t", twai_status.msgs_to_tx);
-    Serial.printf("TX error: %d\t", twai_status.tx_error_counter);
-    Serial.printf("TX failed: %d\n", twai_status.tx_failed_count);
-  }
-
-  // Check if message is received
-  if (alerts_triggered & TWAI_ALERT_RX_DATA) {
-    twai_message_t message;
-    while (twai_receive(&message, 0) == ESP_OK) {
-      handle_rx_message(message);
-    }
-  }
 }
 
 void readPrefs(Params* params, int16_t channel_id = -1) {
@@ -446,10 +156,6 @@ void setup()
     channel.init();
   }
 
-
-  // reset WiFi credentials
-  // prefs.putString("ssid","nf-9G"), prefs.putString("psk","brunxxer");
-
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
@@ -511,8 +217,8 @@ void setup()
         prefs.putString(param, request->getParam(param)->value());
 
     if (request->hasParam("set_can_id") ) {
-      uint8_t zahl = request->getParam("set_can_id")->value().toInt();
-      static_cast<DriverCybergear*>(channels[channel_id].driver)->writeId(zahl);
+      uint8_t new_can_id = request->getParam("set_can_id")->value().toInt();
+      static_cast<DriverCybergear*>(channels[channel_id].driver)->writeId(new_can_id);
     }
 
     // handle instantaneous commands
@@ -598,7 +304,6 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
 
   return o + a * sin( phase + fb / 1000.f * sin(phase) );
 }
-
 
 float ik_phase_x=0, ik_phase_y=0, ik_phase_z=0;
 
