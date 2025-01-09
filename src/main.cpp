@@ -193,17 +193,15 @@ void setup()
   else
     WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
   
-  //ESPServerWifiModeClient
+  // wait for connection to establish
   int cycle = 1;
   while ( WiFi.status() != WL_CONNECTED )
   {
       Serial.print(".");
       delay(500);
-      if ( cycle % 10 == 0) {
-        //WiFi.reconnect();
-        Serial.println();
-      }
       if (cycle >= 10) {
+        // no succes after 5 seconds, back up and provide own access point.
+        Serial.println();
         switchWifiAp();
         break;
       }
