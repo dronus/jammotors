@@ -1,4 +1,31 @@
+/*
+  ESP32 WiFi universal motor controller.
+  
+  Can control different motors by DMX / ArtNet, HTTP and a simple Web UI featuring some motion generators.
+  
+  Supported drives:
+  -Stepper motors with step / dir interface
+  -RC servo motors with PPM interface
+  -DC motors and lights with PWM interface
+  -Xiaomi Cybergear geared servo motors with CAN bus interface
 
+  Motors can be controlled either remotely in realtime with DMX or (soon) OSC commands or the Web UI,
+  or by internal motion generators (oscillations, random movements) configured by the Web UI.
+  
+  Config can be stored permanently to run simple movements directly after power up.
+
+  If no wifi as configured is found, an access point is automatically created. 
+  To access the Web UI, just connect with the "Motor" acces point, and use a browser to access
+  
+    http://192.168.4.1/
+  
+  After a valid wifi access configuration is set and connected to, the device can only be found by looking 
+  at your routers client table or using nmap or other tools.
+  
+  The remote control and motion generator in the Web UI can be tested with no drives attached
+  by setting a channel to "PWM" driver on pin 2 - this will control the ESP32 module's onboard LED.
+
+*/
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
