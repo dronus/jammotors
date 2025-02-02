@@ -15,6 +15,7 @@ DriverCybergear* can_handlers[max_channels];
 struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
   uint8_t can_id;
+  uint32_t last_torque_limit;
 
   DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
     for(uint8_t i=0; i<max_channels; i++)
@@ -39,14 +40,15 @@ struct DriverCybergear : public Driver{
       cybergear.stop_motor();
     if(c.enabled && !c.last_enabled)
       cybergear.enable_motor();
-    // execute move
-    if(c.enabled) {
-      // cybergear.set_limit_speed(c.speed/1000.f);
-      // cybergear.set_position_kp(c.pos_kp/1000.f);
+      
+    if(c.accel != last_torque_limit) {
       cybergear.set_limit_torque(c.accel/1000.f);
-      // cybergear.set_position_ref(c.target/1000.f);
-      cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
+      last_torque_limit = c.accel;
     }
+
+    // execute move
+    if(c.enabled)
+      cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
 
     // check motor state (handle messages for all CyberGear motors)
     // also updates motor status data that can be relayed to wifi clients then.
