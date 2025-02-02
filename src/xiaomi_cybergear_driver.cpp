@@ -78,6 +78,13 @@ void XiaomiCyberGearDriver::set_run_mode(uint8_t mode){
     _send_can_package(_cybergear_can_id, CMD_RAM_WRITE, _master_can_id, 8, data);
 }
 
+void XiaomiCyberGearDriver::set_mech_position_to_zero()
+{
+  uint8_t data[8] = {0x00};
+  data[0] = 0x01;
+  _send_can_package(_cybergear_can_id, CMD_SET_MECH_POSITION_TO_ZERO, _master_can_id, 8, data);
+}
+
 void XiaomiCyberGearDriver::set_limit_speed(float speed){
     _send_can_float_package(_cybergear_can_id, ADDR_LIMIT_SPEED, speed, 0.0f, V_MAX);
 }

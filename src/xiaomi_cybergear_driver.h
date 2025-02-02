@@ -35,6 +35,7 @@ class XiaomiCyberGearDriver {
         void set_limit_speed(float speed);
         void set_limit_current(float current);
         void set_limit_torque(float torque);
+        void set_mech_position_to_zero();
 
         // MODE MOTION
         void send_motion_control(XiaomiCyberGearMotionCommand cmd);

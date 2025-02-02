@@ -21,6 +21,7 @@ struct Channel : public Params {
 
   int enabled, last_enabled=false;
   int have_alarm;
+  bool set_zero = false;
   int32_t target = 0;
   int32_t position = 0, torque = 0, temperature = 0;
   int32_t manual_target=0;

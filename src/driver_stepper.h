@@ -38,6 +38,10 @@ struct DriverStepper : public Driver {
   };
 
   void update(Channel& c, uint32_t dt) {
+    if(c.set_zero) {
+      stepper->setPositionAfterCommandsCompleted(0);
+      c.set_zero = false;
+    }
     digitalWrite(pinEnable, c.enabled);
     stepper->setSpeedInHz(c.speed);
     stepper->setAcceleration(c.accel);
