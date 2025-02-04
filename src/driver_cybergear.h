@@ -16,6 +16,7 @@ struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
   uint8_t can_id;
   uint32_t last_torque_limit;
+  float torque;
 
   DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
     for(uint8_t i=0; i<max_channels; i++)
@@ -46,9 +47,9 @@ struct DriverCybergear : public Driver{
       cybergear.set_mech_position_to_zero();
       c.reset_zero = false;
     }
-
-    if(c.accel != last_torque_limit) {
-      cybergear.set_limit_torque(c.accel/1000.f);
+    torque = c.enabled ? torque + max(min(c.accel/1000.f-torque, 0.01f),-0.01f) : 0.f;
+    if(torque != last_torque_limit) {
+      cybergear.set_limit_torque(torque);
       last_torque_limit = c.accel;
     }
 
