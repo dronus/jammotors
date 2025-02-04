@@ -249,8 +249,8 @@ void setup()
     // handle instantaneous commands
     if (request->hasParam("target") )
       channels[channel_id].manual_target = request->getParam("target")->value().toInt();
-    if (request->hasParam("zero") )
-      channels[channel_id].set_zero = true;
+    if (request->hasParam("reset_zero") )
+      channels[channel_id].reset_zero = true;
     if (request->hasParam("enable") ) {
       channels[channel_id].enabled = request->getParam("enable")->value().toInt();
       if(channels[channel_id].have_alarm) {

@@ -55,7 +55,7 @@ h2 input { width: 1em;}
     Accel / Torque:    <input id=accel  onchange="set(this)">
     Pos kp:    <input id=pos_kp  onchange="set(this)">
     Pos kd:    <input id=pos_kd  onchange="set(this)">
-    <button id="set_zero" value="1" onclick="set(this)">Reset position to zero</button>
+    <button id="reset_zero" value="1" onclick="set(this)">Reset position to zero</button>
   </div>
   <div>
   <h3>Misc</h3>
@@ -83,7 +83,8 @@ h2 input { width: 1em;}
 function set(el) {
   let channel_id = document.querySelector('#channel_id').value;
   let param = el.id;
-  fetch(`/set?channel_id=${channel_id}&${param}=${el.value}`);
+  let value = el.getAttribute("value");
+  fetch(`/set?channel_id=${channel_id}&${param}=${value}`);
   el.blur();
   el.value = '';
 

@@ -42,9 +42,9 @@ struct DriverCybergear : public Driver{
       cybergear.enable_motor();
       
     // reset zero origin if prompted to
-    if(c.set_zero) {
+    if(c.reset_zero) {
       cybergear.set_mech_position_to_zero();
-      c.set_zero = false;
+      c.reset_zero = false;
     }
 
     if(c.accel != last_torque_limit) {
