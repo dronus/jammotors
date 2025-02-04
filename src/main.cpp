@@ -88,14 +88,20 @@ struct GlobalParams : public Params {
   P_int32_t (ik_x_osc_a, -1000,  1000, 0);
   P_int32_t (ik_x_osc_f,     0, 10000, 1000);
   P_int32_t (ik_x_osc_fb,    0,  2000, 0);
+  P_uint8_t (ik_x_dmx_ch,    0,   255, 10);
+  P_int32_t (ik_x_dmx_a, -10000,   10000, 0);
   P_int32_t (ik_y,       -1000,  1000, 0);
   P_int32_t (ik_y_osc_a, -1000,  1000, 0);
   P_int32_t (ik_y_osc_f,     0, 10000, 1000);
   P_int32_t (ik_y_osc_fb,    0,  2000, 0);
+  P_uint8_t (ik_y_dmx_ch,    0,   255, 11);
+  P_int32_t (ik_y_dmx_a, -10000,   10000, 0);
   P_int32_t (ik_z,       -1000,  1000, 720);
   P_int32_t (ik_z_osc_a, -1000,  1000, 0);
   P_int32_t (ik_z_osc_f,     0, 10000, 1000);
   P_int32_t (ik_z_osc_fb,    0,  2000, 0);
+  P_uint8_t (ik_z_dmx_ch,    0,   255, 12);
+  P_int32_t (ik_z_dmx_a, -10000,   10000, 0);
   P_end;
 } global_params;
 
@@ -147,6 +153,8 @@ void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *
       prefs.putInt(prefs_name, value);
     }
 }
+
+float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
 
 void setup() 
 {
@@ -309,7 +317,12 @@ void setup()
       if(c.dmx_channel > 0 && c.dmx_channel-1 < length)
         c.artnet_target = c.scale * ((uint32_t)data[c.dmx_channel-1]);
     }
-
+    if(global_params.ik_x_dmx_ch && global_params.ik_x_dmx_ch <= length) 
+      ik_x_dmx_target = global_params.ik_x_dmx_a / 255.f * (float)data[global_params.ik_x_dmx_ch-1];
+    if(global_params.ik_y_dmx_ch && global_params.ik_y_dmx_ch <= length) 
+      ik_y_dmx_target = global_params.ik_y_dmx_a / 255.f * (float)data[global_params.ik_y_dmx_ch-1];
+    if(global_params.ik_z_dmx_ch && global_params.ik_z_dmx_ch <= length) 
+      ik_z_dmx_target = global_params.ik_z_dmx_a / 255.f * (float)data[global_params.ik_z_dmx_ch-1];
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
@@ -338,9 +351,9 @@ void update_ik(uint32_t dt) {
     // for testing, enable IK even if only a single channel has IK mixed in.
     return;
 
-  float x = fm_osc(global_params.ik_x, global_params.ik_x_osc_a, global_params.ik_x_osc_f, global_params.ik_x_osc_fb, dt, ik_phase_x);
-  float y = fm_osc(global_params.ik_y, global_params.ik_y_osc_a, global_params.ik_y_osc_f, global_params.ik_y_osc_fb, dt, ik_phase_y);
-  float z = fm_osc(global_params.ik_z, global_params.ik_z_osc_a, global_params.ik_z_osc_f, global_params.ik_z_osc_fb, dt, ik_phase_z);
+  float x = fm_osc(global_params.ik_x + ik_x_dmx_target, global_params.ik_x_osc_a, global_params.ik_x_osc_f, global_params.ik_x_osc_fb, dt, ik_phase_x);
+  float y = fm_osc(global_params.ik_y + ik_y_dmx_target, global_params.ik_y_osc_a, global_params.ik_y_osc_f, global_params.ik_y_osc_fb, dt, ik_phase_y);
+  float z = fm_osc(global_params.ik_z + ik_z_dmx_target, global_params.ik_z_osc_a, global_params.ik_z_osc_f, global_params.ik_z_osc_fb, dt, ik_phase_z);
   
   // define shoulder - target angle
   if(y != 0 || x != 0) {
