@@ -84,6 +84,9 @@ char* global_string_params[] = {
 struct GlobalParams : public Params {
   P_int32_t (ik_length_a,true,    0,  1000, 330);
   P_int32_t (ik_length_b,true,    0,  1000, 390);
+  P_int32_t (ik_vel_max,true,    0,  10000,  500);
+  P_int32_t (ik_vel_k  ,true,    0, 100000, 5000);
+  P_int32_t (ik_acc_max,true,    0, 100000, 5000);
   P_end;
 } global_params;
 
@@ -340,8 +343,21 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
 
 float update_ik_axis(Axis& axis, uint32_t dt) {
   axis.target = fm_osc(axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
-  axis.pos = axis.target;
-  return axis.pos;	
+
+  float vel = ( axis.target - axis.pos ) * global_params.ik_vel_k / 1000.f;
+  vel = min( vel,  global_params.ik_vel_max * 1.f);
+  vel = max( vel, -global_params.ik_vel_max * 1.f);
+
+  float acc = ( vel - axis.vel ) / ( dt / 1000.f);
+  float acc_limit =  global_params.ik_acc_max;
+  // if ( acc * vel < 0) acc_limit *= 5.f;   // allow for stronger braking to prevent overshoot
+  acc = min( acc,  acc_limit);
+  acc = max( acc, -acc_limit);
+
+  axis.vel += acc * dt / 1000.f;
+  axis.pos += axis.vel * dt / 1000.f;
+
+  return axis.pos;
 }
 
 void update_ik(uint32_t dt) {
