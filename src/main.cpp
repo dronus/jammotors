@@ -90,6 +90,12 @@ struct GlobalParams : public Params {
   P_end;
 } global_params;
 
+struct Status : public Params {
+  P_int32_t (dt, false, 0, 0, 0);
+  P_int32_t (error, false, 0, 0, 0);
+  P_end;
+} status;
+
 struct Axis : public  Params {
   P_int32_t (ik_offset,true, -1000,  1000, 0);
   P_int32_t (ik_target,false,-10000, 10000, 0);
@@ -278,6 +284,11 @@ void setup()
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
     for(Param* p = channels[channel_id].getParams(); p; p=p->next())
       response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+    for(Param* p = global_params.getParams(); p; p=p->next())    
+      response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+    for(Param* p = status.getParams(); p; p = p->next())
+      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+
     request->send(response);
   });
 
@@ -419,14 +430,20 @@ void loop()
 
   // compute delta time
   uint32_t time = millis();
-  uint32_t dt = time - last_time;
+  status.dt = time - last_time;
   last_time = time;
-  //Serial.println(dt);
-
-  update_ik(dt);
-
-  for(Channel& c : channels)
-    c.update(dt);
   
+  // compute total motion error
+
+  update_ik(status.dt);
+
+  uint32_t err = 0;
+  for(Channel& c : channels) {
+    c.update(status.dt);
+    if(c.enabled)
+      err += abs(c.target-c.position);
+  }
+  status.error = err;
+
   delay(10);
 }
