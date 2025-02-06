@@ -8,9 +8,9 @@ h2 input, h2 select { font-size:120%;}
 h2 input { width: 1em;}
 </style>
 
-<div>
-  <h2>Channel 
-    <input id=channel_id onchange="update_channel()" value="0"> : 
+<h2>Channel <input id=channel_id onchange="update_channel()" value="0"></h2>
+<div class=channel>
+  <div>
     <select id=driver_id onchange="set(this)">
       <option value=0>Disabled</option>
       <option value=1>Stepper</option>
@@ -19,17 +19,17 @@ h2 input { width: 1em;}
       <option value=4>CyberGear</option>
     </select> on Pin / Address 
     <input id=pin_id onchange="set(this)" style="width: 2em;">
-  </h2>
+  </div>
   <div>
     Actual: <input id=position disabled>
-    Target: <input id=target onchange="set(this)">
+    Target: <input id=target onchange="set(this)" disabled>
     Torque: <input id=torque disabled>
     Temp:   <input id=temperature disabled>
   </div>
   <div>
     <h3>Enable / Error</h3>
     Alarm: <input id=alarm disabled> (reset by disable / enable)<br/>
-    Enabled:  <input id=enable onchange="set(this)"> 
+    Enabled:  <input id=enabled onchange="set(this)"> 
     Enable on Power On: <input id=poweron_en onchange="set(this)">
   </div>
   <div>
@@ -55,7 +55,7 @@ h2 input { width: 1em;}
     Accel / Torque:    <input id=accel  onchange="set(this)">
     Pos kp:    <input id=pos_kp  onchange="set(this)">
     Pos kd:    <input id=pos_kd  onchange="set(this)">
-    <button id="reset_zero" value="1" onclick="set(this)">Reset position to zero</button>
+    <button id="reset_zero" onclick="this.value=1; set(this)">Reset position to zero</button>
   </div>
   <div>
   <h3>Misc</h3>
@@ -83,7 +83,7 @@ h2 input { width: 1em;}
 function set(el) {
   let channel_id = document.querySelector('#channel_id').value;
   let param = el.id;
-  let value = el.getAttribute("value");
+  let value = el.value;
   fetch(`/set?channel_id=${channel_id}&${param}=${value}`);
   el.blur();
   el.value = '';
@@ -95,7 +95,7 @@ function show(id, value) {
   let el = document.getElementById(id);
   if(!el) {
     let container = document.getElementById('global_config');
-    if(container.lastChild && container.lastChild.id && container.lastChild.id.substr(0,4) != id.substr(0,4) )
+    if(container.lastChild && container.lastChild.id && container.lastChild.id.slice(-2) != id.slice(-2) )
       container.append(document.createElement("hr"));
     let label = document.createElement('span');
     label.innerText = id;
@@ -121,9 +121,25 @@ async function fetch_and_show(url) {
   }
 }
 
-setInterval(()=>fetch_and_show("/status"),500);
+
+for(let channel_id=0; channel_id<4; channel_id++) {
+  let tpl = document.querySelector('.channel');
+  let channel_el = tpl.cloneNode(true);
+  channel_el.setAttribute('channel',channel_id);
+  tpl.insertAdjacentElement('afterend', channel_el);
+  let els = channel_el.querySelectorAll('.channel input:not(#channel_id), .channel select, .channel button');
+  for(let el of els)
+    el.id = el.id.replace(/_[0-9]+$/, '') + '_'+channel_id;
+}
 
 function update_channel() {
+  let channel_id = document.querySelector('#channel_id').value;
+  
+  let channel_el = document.querySelector(`div[channel="${channel_id}"]`);
+  for(let el of document.querySelectorAll('div.channel'))
+    el.style.display='none';
+  channel_el.style.display='';
+
   fetch_and_show("/config");
 }
 update_channel();
@@ -136,6 +152,9 @@ document.body.addEventListener('keydown',(e) => {
     update_channel();
   }
 });
+
+setInterval(()=>fetch_and_show("/status"),500);
+
 
 </script>
 

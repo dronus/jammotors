@@ -82,28 +82,27 @@ char* global_string_params[] = {
 };
 
 struct GlobalParams : public Params {
-  P_int32_t (ik_length_a,    0,  1000, 330);
-  P_int32_t (ik_length_b,    0,  1000, 390);
-  P_int32_t (ik_x,       -1000,  1000, 0);
-  P_int32_t (ik_x_osc_a, -1000,  1000, 0);
-  P_int32_t (ik_x_osc_f,     0, 10000, 1000);
-  P_int32_t (ik_x_osc_fb,    0,  2000, 0);
-  P_uint8_t (ik_x_dmx_ch,    0,   255, 10);
-  P_int32_t (ik_x_dmx_a, -10000,   10000, 0);
-  P_int32_t (ik_y,       -1000,  1000, 0);
-  P_int32_t (ik_y_osc_a, -1000,  1000, 0);
-  P_int32_t (ik_y_osc_f,     0, 10000, 1000);
-  P_int32_t (ik_y_osc_fb,    0,  2000, 0);
-  P_uint8_t (ik_y_dmx_ch,    0,   255, 11);
-  P_int32_t (ik_y_dmx_a, -10000,   10000, 0);
-  P_int32_t (ik_z,       -1000,  1000, 720);
-  P_int32_t (ik_z_osc_a, -1000,  1000, 0);
-  P_int32_t (ik_z_osc_f,     0, 10000, 1000);
-  P_int32_t (ik_z_osc_fb,    0,  2000, 0);
-  P_uint8_t (ik_z_dmx_ch,    0,   255, 12);
-  P_int32_t (ik_z_dmx_a, -10000,   10000, 0);
+  P_int32_t (ik_length_a,true,    0,  1000, 330);
+  P_int32_t (ik_length_b,true,    0,  1000, 390);
   P_end;
 } global_params;
+
+struct Axis : public  Params {
+  P_int32_t (ik_offset,true, -1000,  1000, 0);
+  P_int32_t (ik_target,false,-10000, 10000, 0);
+  P_int32_t (ik_osc_a ,true, -1000,  1000, 0);
+  P_int32_t (ik_osc_f ,true,     0, 10000, 1000);
+  P_int32_t (ik_osc_fb,true,     0,  2000, 0);
+  P_uint8_t (ik_dmx_ch,true,     0,   255, 10);
+  P_int32_t (ik_dmx_a ,true,-10000, 10000, 0);
+  P_end;
+
+  float pos=0, vel=0, target=0;
+  float ik_phase=0;
+  float ik_dmx_target;
+};
+
+Axis axes[4];
 
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
@@ -121,6 +120,7 @@ void switchWifiAp() {
 
 void readPrefs(Params* params, int16_t channel_id = -1) {
   for(Param* p = params->getParams(); p; p=p->next()) {
+
     char prefs_name[32];
     if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
       snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
@@ -141,17 +141,22 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 }
 
 void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *request) {
-  for(Param* p = params->getParams(); p ; p = p->next())
-    if (request->hasParam(p->desc->name) ) {
-      int32_t value = request->getParam(p->desc->name)->value().toInt();
+
+  for(Param* p = params->getParams(); p ; p = p->next()) {
+
+    char prefs_name[32];
+    if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
+      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
+    else
+      snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
+
+    if (request->hasParam(prefs_name) ) {
+      int32_t value = request->getParam(prefs_name)->value().toInt();
       p->set(value);
-      char prefs_name[32];
-      if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
-        snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
-      else
-        snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
-      prefs.putInt(prefs_name, value);
+      if(p->desc->persist)
+        prefs.putInt(prefs_name, value);
     }
+  }
 }
 
 float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
@@ -169,7 +174,7 @@ void setup()
   WiFi.mode(WIFI_OFF);
   WiFi.persistent(false);
 
-  // initialize LittleFS on flash for persitent parameter storage by Prefs library
+  // initialize LittleFS on flash for persistent parameter storage by Prefs library
   bool spiffsBeginSuccess = LittleFS.begin();
   if (!spiffsBeginSuccess)
     Serial.println("LittleFS cannot be mounted.");
@@ -183,13 +188,13 @@ void setup()
 
   for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
     Channel& channel = channels[channel_id];
-    
     // read preferences
     readPrefs(&channel,channel_id);
-
     // initialize
     channel.init();
   }
+  for(uint8_t axis_id = 0; axis_id<3; axis_id++)
+    readPrefs(&axes[axis_id],axis_id);
 
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
@@ -239,7 +244,6 @@ void setup()
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
 
     // handle persistent per-channel parameters
-
     readFromRequest(&channels[channel_id], channel_id, request);
     
     // check for global parameters
@@ -249,23 +253,16 @@ void setup()
       if (request->hasParam(param) )
         prefs.putString(param, request->getParam(param)->value());
 
+    // check for axes parameters
+    for(uint8_t i=0; i<3; i++)
+      readFromRequest(&axes[i], i, request);
+
     if (request->hasParam("set_can_id") ) {
       uint8_t new_can_id = request->getParam("set_can_id")->value().toInt();
       static_cast<DriverCybergear*>(channels[channel_id].driver)->writeId(new_can_id);
     }
 
     // handle instantaneous commands
-    if (request->hasParam("target") )
-      channels[channel_id].manual_target = request->getParam("target")->value().toInt();
-    if (request->hasParam("reset_zero") )
-      channels[channel_id].reset_zero = true;
-    if (request->hasParam("enable") ) {
-      channels[channel_id].enabled = request->getParam("enable")->value().toInt();
-      if(channels[channel_id].have_alarm) {
-        channels[channel_id].init();
-        channels[channel_id].have_alarm = 0;
-      }
-    }
     if (request->hasParam("home") )
       homing = request->getParam("home")->value().toInt();
     if (request->hasParam("reset") )
@@ -275,14 +272,9 @@ void setup()
   // http "status" API to query current status
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
-    response->printf("%s %d\n","target",channels[channel_id].target);
-    response->printf("%s %d\n","position",channels[channel_id].position);
-    response->printf("%s %d\n","torque",channels[channel_id].torque);
-    response->printf("%s %d\n","temperature",channels[channel_id].temperature);
-    response->printf("%s %d\n","enable",channels[channel_id].enabled);
-    response->printf("%s %d\n","alarm",channels[channel_id].have_alarm);
+    for(Param* p = channels[channel_id].getParams(); p; p=p->next())
+      response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
     request->send(response);
   });
 
@@ -293,15 +285,19 @@ void setup()
     // send global configuration
     for(char* param : global_string_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
-
     for(Param* p = global_params.getParams(); p; p = p->next())
       response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
 
     // send current channel configuration
-    int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
+    int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
     for(Param* p = channels[channel_id].getParams(); p; p = p->next())
-      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
-      
+      response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
+
+    // send axes configuration
+    for(uint8_t i=0; i<3; i++)
+      for(Param* p = axes[i].getParams(); p; p = p->next())
+        response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
+
     request->send(response);
   });
 
@@ -317,12 +313,11 @@ void setup()
       if(c.dmx_channel > 0 && c.dmx_channel-1 < length)
         c.artnet_target = c.scale * ((uint32_t)data[c.dmx_channel-1]);
     }
-    if(global_params.ik_x_dmx_ch && global_params.ik_x_dmx_ch <= length) 
-      ik_x_dmx_target = global_params.ik_x_dmx_a / 255.f * (float)data[global_params.ik_x_dmx_ch-1];
-    if(global_params.ik_y_dmx_ch && global_params.ik_y_dmx_ch <= length) 
-      ik_y_dmx_target = global_params.ik_y_dmx_a / 255.f * (float)data[global_params.ik_y_dmx_ch-1];
-    if(global_params.ik_z_dmx_ch && global_params.ik_z_dmx_ch <= length) 
-      ik_z_dmx_target = global_params.ik_z_dmx_a / 255.f * (float)data[global_params.ik_z_dmx_ch-1];
+    
+    for(uint8_t i=0; i<3; i++)
+      if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
+        axes[i].ik_dmx_target = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
+
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
@@ -343,7 +338,11 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
   return o + a * sin( phase + fb / 1000.f * sin(phase) );
 }
 
-float ik_phase_x=0, ik_phase_y=0, ik_phase_z=0;
+float update_ik_axis(Axis& axis, uint32_t dt) {
+  axis.target = fm_osc(axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
+  axis.pos = axis.target;
+  return axis.pos;	
+}
 
 void update_ik(uint32_t dt) {
 
@@ -351,9 +350,9 @@ void update_ik(uint32_t dt) {
     // for testing, enable IK even if only a single channel has IK mixed in.
     return;
 
-  float x = fm_osc(global_params.ik_x + ik_x_dmx_target, global_params.ik_x_osc_a, global_params.ik_x_osc_f, global_params.ik_x_osc_fb, dt, ik_phase_x);
-  float y = fm_osc(global_params.ik_y + ik_y_dmx_target, global_params.ik_y_osc_a, global_params.ik_y_osc_f, global_params.ik_y_osc_fb, dt, ik_phase_y);
-  float z = fm_osc(global_params.ik_z + ik_z_dmx_target, global_params.ik_z_osc_a, global_params.ik_z_osc_f, global_params.ik_z_osc_fb, dt, ik_phase_z);
+  float x = update_ik_axis(axes[0],dt);
+  float y = update_ik_axis(axes[1],dt);
+  float z = update_ik_axis(axes[2],dt);
   
   // define shoulder - target angle
   if(y != 0 || x != 0) {

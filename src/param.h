@@ -70,17 +70,19 @@ public:
 
   const uint32_t count;
   const char* name;
+  bool persist;
   const float def,min,max;
 
-  Descriptor(ParamType _type=P_UINT8_T, uint32_t _count=1, const char* _name="", float _min=0, float _max=99, float _default=50) : type(_type), count(_count), name(_name), def(_default), min(_min), max(_max) {};
+  Descriptor(ParamType _type=P_UINT8_T, uint32_t _count=1, const char* _name="", bool _persist=false, float _min=0, float _max=99, float _default=50) : type(_type), count(_count), name(_name), persist(_persist), def(_default), min(_min), max(_max) {};
+
 };
 
 class Param {
 public:
   Descriptor* desc;
 
-  Param(ParamType _type=P_UINT8_T, uint32_t _count=1, const char* _name="", float _min=0, float _max=99, float _default=50) : desc(
-    new Descriptor(_type, _count, _name, _min, _max, _default )
+  Param(ParamType _type=P_UINT8_T, uint32_t _count=1, const char* _name="", bool _persist=false, float _min=0, float _max=99, float _default=50) : desc(
+    new Descriptor(_type, _count, _name, _persist, _min, _max, _default )
   ) {
     // fill default values
     for(uint32_t i=0; i<_count; i++)
@@ -125,23 +127,23 @@ public:
   };
 } __attribute__ ((aligned (4)));
 
-#define P_bool(name,def) \
-  Param name##_desc{P_UINT8_T, 1, #name, 0, 1, def}; uint8_t name = def
+#define P_bool(name,persist,def) \
+  Param name##_desc{P_UINT8_T, 1, #name, persist, 0, 1, def}; uint8_t name = def
 
-#define P_uint8_t(name,min,max,def) \
-  Param name##_desc{P_UINT8_T, 1, #name, min, max, def}; uint8_t name = def
+#define P_uint8_t(name,persist,min,max,def) \
+  Param name##_desc{P_UINT8_T, 1, #name, persist, min, max, def}; uint8_t name = def
 
-#define P_uint16_t(name,min,max,def) \
-  Param name##_desc{P_UINT16_T, 1, #name,min,max,def}; uint16_t name = def
+#define P_uint16_t(name,persist,min,max,def) \
+  Param name##_desc{P_UINT16_T, 1, #name, persist, min,max,def}; uint16_t name = def
 
-#define P_int32_t(name,min,max,def) \
-  Param name##_desc{P_INT32_T, 1, #name,min,max,def}; int32_t name = def
+#define P_int32_t(name,persist,min,max,def) \
+  Param name##_desc{P_INT32_T, 1, #name,persist,min,max,def}; int32_t name = def
 
-#define P_uint32_t(name,min,max,def) \
-  Param name##_desc{P_UINT32_T, 1, #name,min,max,def}; int32_t name = def
+#define P_uint32_t(name,persist,min,max,def) \
+  Param name##_desc{P_UINT32_T, 1, #name,persist,min,max,def}; int32_t name = def
 
-#define P_float(name,min,max,def) \
-  Param name##_desc{P_FLOAT, 1, #name,min,max,def}; float name = def
+#define P_float(name,persist,min,max,def) \
+  Param name##_desc{P_FLOAT, 1, #name,persist,min,max,def}; float name = def
 
 #define P_end Param _p_end_desc{P_END};
 
@@ -157,7 +159,6 @@ public:
     getParam(field)->check();
   };
   void check() {
-
     Param* prm = getParams();
     do {
       prm->check();
