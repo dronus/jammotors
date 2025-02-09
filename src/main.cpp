@@ -82,6 +82,7 @@ char* global_string_params[] = {
 };
 
 struct GlobalParams : public Params {
+  P_int32_t (ik_length_c,true,    0,  1000,  90);
   P_int32_t (ik_length_a,true,    0,  1000, 330);
   P_int32_t (ik_length_b,true,    0,  1000, 390);
   P_int32_t (ik_vel_max,true,    0,  10000,  500);
@@ -380,28 +381,30 @@ void update_ik(uint32_t dt) {
   float x = update_ik_axis(axes[0],dt);
   float y = update_ik_axis(axes[1],dt);
   float z = update_ik_axis(axes[2],dt);
-  
-  // define shoulder - target angle
-  if(y != 0 || x != 0) {
-    float alpha = atan2(x,y);
-    channels[0].ik_target = alpha  / (float)pi;
-  } // if y and z are zero, just keep last rotation angle.
 
-  // define shoulder - elbow - target triangle
-  float a = global_params.ik_length_a; // upper arm
-  float b = global_params.ik_length_b; // lower arm
-  float c = sqrtf(x*x+y*y+z*z); // span to target
+  // define shoulder - target angle
+  if(y == 0 && x == 0) return; // if y and z are zero, just keep last angles.
+ 
+  // define xy-plane origin - shoulder - target triangle
+  float rot = sqrtf(x*x+y*y); // span origin to target in xy-plane
+  float ros = global_params.ik_length_c; // shoulder offset
+  if(rot < ros) return; // target to close
+  float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
+  float alpha = atan2(x,y) - acos ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
+  channels[0].ik_target = alpha  / (float)pi;
 
   // get elbow angle by triangle cosine equation 
+  float a = global_params.ik_length_a; // upper arm
+  float b = global_params.ik_length_b; // lower arm
+  float c = sqrtf(rst*rst + z*z); // span to target
   if(c>a+b) return; // point out of reach - arm to short.
+  if(b>a+c) return; // point out of reach - lower arm to long.
+  if(a>b+c) return; // point out of reach - upper arm to long.
   float gamma = acos ((a*a + b*b - c*c) / (2 * a * b)) - pi;
   
   // get shoulder angle by triangle cosine equation and atan offset
-  float d_xy = sqrtf(x*x+y*y); // distance in xy-plane to z-axis
-  if(b>a+c) return; // point out of reach - lower arm to long.
-  if(z==0 && d_xy==0) return; // point 0,0,0 undefined.
-  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) - atan2(d_xy,z);
-
+  if(z==0 && rst==0) return; // point undefined.
+  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) - atan2(rst,z);
   channels[1].ik_target = beta  / (float)pi;
   channels[2].ik_target = gamma / (float)pi;
 }
