@@ -283,9 +283,9 @@ void setup()
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
     for(Param* p = channels[channel_id].getParams(); p; p=p->next())
-      response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+      if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
     for(Param* p = global_params.getParams(); p; p=p->next())    
-      response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+      if(!p->desc->persist) response->printf("%s %d\n",p->desc->name,(int32_t)p->get());
     for(Param* p = status.getParams(); p; p = p->next())
       response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
 
@@ -300,17 +300,17 @@ void setup()
     for(char* param : global_string_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
     for(Param* p = global_params.getParams(); p; p = p->next())
-      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+      if(p->desc->persist) response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
 
     // send current channel configuration
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
     for(Param* p = channels[channel_id].getParams(); p; p = p->next())
-      response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
+      if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
 
     // send axes configuration
     for(uint8_t i=0; i<3; i++)
       for(Param* p = axes[i].getParams(); p; p = p->next())
-        response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
+        if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
 
     request->send(response);
   });
