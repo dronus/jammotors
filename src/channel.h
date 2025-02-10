@@ -82,6 +82,8 @@ struct Channel : public Params {
 
     if(driver)
       driver->update(*this, dt);
+    else if(enabled)
+      position = target;
 
     last_enabled = enabled;
   }

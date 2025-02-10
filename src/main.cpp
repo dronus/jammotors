@@ -93,13 +93,13 @@ struct GlobalParams : public Params {
 
 struct Status : public Params {
   P_int32_t (dt, false, 0, 0, 0);
-  P_int32_t (error, false, 0, 0, 0);
+  P_int32_t (ik_error, false, 0, 0, 0);
   P_end;
 } status;
 
 struct Axis : public  Params {
   P_int32_t (ik_offset,true, -1000,  1000, 0);
-  P_int32_t (ik_target,false,-10000, 10000, 0);
+  P_int32_t (ik_feedback ,false,0,0, 0);
   P_int32_t (ik_osc_a ,true, -1000,  1000, 0);
   P_int32_t (ik_osc_f ,true,     0, 10000, 1000);
   P_int32_t (ik_osc_fb,true,     0,  2000, 0);
@@ -289,6 +289,9 @@ void setup()
       if(!p->desc->persist) response->printf("%s %d\n",p->desc->name,(int32_t)p->get());
     for(Param* p = status.getParams(); p; p = p->next())
       response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+    for(uint8_t i=0; i<3; i++)
+      for(Param* p = axes[i].getParams(); p; p = p->next())
+        if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
 
     request->send(response);
   });
@@ -410,6 +413,39 @@ void update_ik(uint32_t dt) {
 }
 
 
+void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
+  float x_in = _x_in;
+  float y_in = _y_in;
+  x_out =  x_in * cos(alpha) - y_in * sin(alpha);
+  y_out =  x_in * sin(alpha) + y_in * cos(alpha);
+}
+
+void update_ik_feedback() {
+  
+  float alpha = channels[0].position / (float)channels[0].ik_a * (float)pi;
+  float beta  = channels[1].position / (float)channels[1].ik_a * (float)pi;
+  float gamma = channels[2].position / (float)channels[2].ik_a * (float)pi;
+
+  float x=0, y=0, z=0;
+  z += global_params.ik_length_b;
+  rot(y,z,gamma,y,z);
+  z += global_params.ik_length_a;
+  rot(y,z,beta,y,z);
+  x += global_params.ik_length_c;
+  rot(y,x,alpha,y,x);
+
+  axes[0].ik_feedback = x;
+  axes[1].ik_feedback = y;
+  axes[2].ik_feedback = z;
+
+  float dx = axes[0].pos - x;
+  float dy = axes[1].pos - y;
+  float dz = axes[2].pos - z;
+
+  status.ik_error = sqrtf( dx*dx + dy*dy + dz*dz );
+}
+
+
 void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   Serial.printf("OSC in : %s",receivedOscMessage.buffer);
 
@@ -435,18 +471,12 @@ void loop()
   uint32_t time = millis();
   status.dt = time - last_time;
   last_time = time;
-  
-  // compute total motion error
 
   update_ik(status.dt);
+  update_ik_feedback(); // to get IK error
 
-  uint32_t err = 0;
-  for(Channel& c : channels) {
+  for(Channel& c : channels)
     c.update(status.dt);
-    if(c.enabled)
-      err += abs(c.target-c.position);
-  }
-  status.error = err;
 
   delay(10);
 }
