@@ -337,6 +337,8 @@ void setup()
   udpIn.begin(oscInPort);
   Serial.println("OSC receiver started.");
  
+  vTaskPrioritySet(NULL, 4);
+ 
   // light status led
   digitalWrite(statusLedPin,HIGH);
 }
@@ -458,19 +460,25 @@ uint32_t last_time;
 
 void loop() 
 {
+  // compute delta time
+  uint32_t time = millis();
+  uint32_t dt = time - last_time;
+  if(last_time == 0) dt=1;
+  last_time = time;
+  if(dt < 10) {
+    delay(10-dt);
+    dt = 10;
+  }
+  status.dt = dt;
+  status.dt_max = max(status.dt, status.dt_max);
+
   ArduinoOTA.handle();
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
   artnetnode.read();
   oscReceiver.onOscMessageReceived( oscMessageParser );
 
-  // compute delta time
-  uint32_t time = millis();
-  status.dt = time - last_time;
-  if(last_time != 0) 
-    status.dt_max = max(status.dt, status.dt_max);
-  last_time = time;
-
+ 
   for(Axis& axis : axes)
     axis.target = 0;
   midi_picker.update(axes,status.dt);
@@ -479,6 +487,4 @@ void loop()
 
   for(Channel& c : channels)
     c.update(status.dt);
-
-  delay(10);
 }
