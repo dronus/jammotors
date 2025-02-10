@@ -43,11 +43,12 @@ const float pi = 3.1415926f;
 #include "param.h"
 #include "driver.h"
 #include "channel.h"
+#include "axis.h"
 #include "driver_stepper.h"
 #include "driver_servo.h"
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
-
+#include "midi_picker.h"
 
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
@@ -59,7 +60,7 @@ DNSServer dnsServer;
 WiFiUDP udpIn;
 unsigned int oscInPort = 8888;
 MicroOscUdp<1024> oscReceiver(&udpIn, IPAddress(0,0,0,0), 0);
-
+MidiPicker midi_picker;
 
 int homing = 0;
 
@@ -97,21 +98,6 @@ struct Status : public Params {
   P_int32_t (ik_error, false, 0, 0, 0);
   P_end;
 } status;
-
-struct Axis : public  Params {
-  P_int32_t (ik_offset,true, -1000,  1000, 0);
-  P_int32_t (ik_feedback ,false,0,0, 0);
-  P_int32_t (ik_osc_a ,true, -1000,  1000, 0);
-  P_int32_t (ik_osc_f ,true,     0, 10000, 1000);
-  P_int32_t (ik_osc_fb,true,     0,  2000, 0);
-  P_uint8_t (ik_dmx_ch,true,     0,   255, 10);
-  P_int32_t (ik_dmx_a ,true,-10000, 10000, 0);
-  P_end;
-
-  float pos=0, vel=0, target=0;
-  float ik_phase=0;
-  float ik_dmx_target;
-};
 
 Axis axes[4];
 
@@ -170,6 +156,7 @@ void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *
   }
 }
 
+
 float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
 
 void setup() 
@@ -196,6 +183,7 @@ void setup()
   Serial.println("Prefs started.");
 
   readPrefs(&global_params);
+  readPrefs(&midi_picker);
 
   for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
     Channel& channel = channels[channel_id];
@@ -263,6 +251,7 @@ void setup()
     for(char* param : global_string_params)
       if (request->hasParam(param) )
         prefs.putString(param, request->getParam(param)->value());
+    readFromRequest(&midi_picker, -1, request);
 
     // check for axes parameters
     for(uint8_t i=0; i<3; i++)
@@ -306,6 +295,8 @@ void setup()
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
     for(Param* p = global_params.getParams(); p; p = p->next())
       if(p->desc->persist) response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
+    for(Param* p = midi_picker.getParams(); p; p = p->next())
+      if(p->desc->persist) response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
 
     // send current channel configuration
     int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
@@ -343,7 +334,7 @@ void setup()
 
   // start OSC Udp receiver
   udpIn.begin(oscInPort);
-  
+  Serial.println("OSC receiver started.");
  
   // light status led
   digitalWrite(statusLedPin,HIGH);
@@ -358,7 +349,7 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
 }
 
 float update_ik_axis(Axis& axis, uint32_t dt) {
-  axis.target = fm_osc(axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
+  axis.target += fm_osc(axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
 
   float vel = ( axis.target - axis.pos ) * global_params.ik_vel_k / 1000.f;
   vel = min( vel,  global_params.ik_vel_max * 1.f);
@@ -446,15 +437,19 @@ void update_ik_feedback() {
   status.ik_error = sqrtf( dx*dx + dy*dy + dz*dz );
 }
 
-
 void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   Serial.printf("OSC in : %s",receivedOscMessage.buffer);
 
-  if ( receivedOscMessage.checkOscAddress("/note") ) {
-    Serial.println("OSC Note in");
+  if ( receivedOscMessage.checkOscAddress("/midi") ) {
     const uint8_t* midi;
-    receivedOscMessage.nextAsMidi(&midi);
-    Serial.printf("%d %d %d %d",midi[0],midi[1],midi[2],midi[3]);
+    receivedOscMessage.nextAsMidi(&midi);    
+    uint8_t type = midi[0] & 0xF0;
+    Serial.printf("OSC MIDI cmd/channel:%d note:%d velocity:%d ",midi[0],midi[1],midi[2]);
+    if(type == 0x90) {// note on
+      Serial.printf("note_on ",midi[0],midi[1],midi[2]);
+      midi_picker.pick(midi[1]);
+    }
+    Serial.println();
   }
 }
 
@@ -475,6 +470,9 @@ void loop()
     status.dt_max = max(status.dt, status.dt_max);
   last_time = time;
 
+  for(Axis& axis : axes)
+    axis.target = 0;
+  midi_picker.update(axes,status.dt);
   update_ik(status.dt);
   update_ik_feedback(); // to get IK error
 
