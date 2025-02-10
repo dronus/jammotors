@@ -24,6 +24,7 @@ struct Channel : public Params {
   P_int32_t (position ,false,0,0,0);
   P_int32_t (torque ,false,0,0,0);
   P_int32_t (temperature ,false,0,0,0);
+  P_int32_t (set_can_id ,true,0,255,0);
   
   P_end;
 

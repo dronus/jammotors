@@ -256,11 +256,6 @@ void setup()
     for(uint8_t i=0; i<3; i++)
       readFromRequest(&axes[i], i, request);
 
-    if (request->hasParam("set_can_id") ) {
-      uint8_t new_can_id = request->getParam("set_can_id")->value().toInt();
-      static_cast<DriverCybergear*>(channels[channel_id].driver)->writeId(new_can_id);
-    }
-
     // handle instantaneous commands
     if (request->hasParam("home") )
       homing = request->getParam("home")->value().toInt();

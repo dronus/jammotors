@@ -41,6 +41,13 @@ struct DriverCybergear : public Driver{
       cybergear.stop_motor();
     if(c.enabled && !c.last_enabled)
       cybergear.enable_motor();
+
+    // write new can_id if requested to
+    if(c.set_can_id > 0) {
+      Serial.printf("Set new CAN ID %d for motor on CAN ID %d\n", c.set_can_id, can_id);
+      cybergear.set_motor_can_id(c.set_can_id);
+      c.set_can_id = 0;
+    }
       
     // reset zero origin if prompted to
     if(c.reset_zero) {
@@ -72,11 +79,6 @@ struct DriverCybergear : public Driver{
     // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
     // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
   };
-  
-  void writeId(uint8_t new_can_id) {
-    Serial.printf("Set new CAN ID %d for motor on CAN ID %d\n", new_can_id, can_id);
-    cybergear.set_motor_can_id(new_can_id);
-  }
 };
 
 
