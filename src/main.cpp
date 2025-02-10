@@ -93,6 +93,7 @@ struct GlobalParams : public Params {
 
 struct Status : public Params {
   P_int32_t (dt, false, 0, 0, 0);
+  P_int32_t (dt_max, false, 0, 0, 0);
   P_int32_t (ik_error, false, 0, 0, 0);
   P_end;
 } status;
@@ -470,6 +471,8 @@ void loop()
   // compute delta time
   uint32_t time = millis();
   status.dt = time - last_time;
+  if(last_time != 0) 
+    status.dt_max = max(status.dt, status.dt_max);
   last_time = time;
 
   update_ik(status.dt);
