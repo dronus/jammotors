@@ -12,48 +12,48 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
 td:not(:first-child) { max-width: 5.5em; overflow: visible; }
 </style>
 
-<table class=channel>
-  <tr><td colspan=2><h2>Channel <span id=channel></span></h2></td></tr>
+<table id=channels>
+  <tr><td><h2>Channel</h2></td> <td><h2>0</h2></td> <td><h2>1</h2></td> <td><h2>2</h2></td> <td><h2>3</h2></td> </tr>
   <tr><td>Driver</td><td>
-    <select id=driver_id onchange="set(this)">
+    <select id=driver_id_0 onchange="set(this)">
       <option value=0>Disabled</option>
       <option value=1>Stepper</option>
       <option value=2>RC Servo</option>
       <option value=3>PWM</option>
       <option value=4>CyberGear</option>
     </select> </td></tr>
-  <tr><td>on Pin / Address  </td><td> <input id=pin_id onchange="set(this)"></td>
-  <tr><td>Actual </td><td> <input id=position disabled> </td></tr>
-  <tr><td>Target </td><td> <input id=target onchange="set(this)" disabled> </td></tr>
-  <tr><td>Torque </td><td> <input id=torque disabled> </td></tr>
-  <tr><td>Temp   </td><td> <input id=temperature disabled> </td></tr>
-  <tr><td>Alarm  (reset by disable) </td><td> <input id=alarm disabled></td></tr>
-  <tr><td>Enabled </td><td> <input id=enabled onchange="set(this)"> </td></tr>
-  <tr><td>Enable on Power On </td><td> <input id=poweron_en onchange="set(this)"> </td></tr>
+  <tr><td>on Pin / Address  </td><td> <input id=pin_id_0 onchange="set(this)"></td>
+  <tr><td>Actual </td><td> <input id=position_0 disabled> </td></tr>
+  <tr><td>Target </td><td> <input id=target_0 onchange="set(this)" disabled> </td></tr>
+  <tr><td>Torque </td><td> <input id=torque_0 disabled> </td></tr>
+  <tr><td>Temp   </td><td> <input id=temperature_0 disabled> </td></tr>
+  <tr><td>Alarm  (reset by disable) </td><td> <input id=alarm_0 disabled></td></tr>
+  <tr><td>Enabled </td><td> <input id=enabled_0 onchange="set(this)"> </td></tr>
+  <tr><td>Enable on Power On </td><td> <input id=poweron_en_0 onchange="set(this)"> </td></tr>
   <tr><td><h3>Motion sources</h3></td></tr>
-  <tr><td>Offset </td><td> <input id=offset  onchange="set(this)"> </td></tr>
+  <tr><td>Offset </td><td> <input id=offset_0  onchange="set(this)"> </td></tr>
   <tr><td><h4>Oscillate</h4></td></tr>
-  <tr><td>Frequency </td><td>  <input id=osc_f  onchange="set(this)"> </td></tr>
-  <tr><td>Amplitude </td><td>  <input id=osc_a onchange="set(this)"> </td></tr>
-  <tr><td>Phase </td><td>      <input id=osc_p onchange="set(this)"> </td></tr>
+  <tr><td>Frequency </td><td>  <input id=osc_f_0  onchange="set(this)"> </td></tr>
+  <tr><td>Amplitude </td><td>  <input id=osc_a_0 onchange="set(this)"> </td></tr>
+  <tr><td>Phase </td><td>      <input id=osc_p_0 onchange="set(this)"> </td></tr>
   <tr><td><h4>Random</h4></td></tr>
-  <tr><td>Static delay </td><td>  <input id=random_d  onchange="set(this)"> </td></tr>
-  <tr><td>Random delay </td><td>  <input id=random_rd onchange="set(this)"> </td></tr>
-  <tr><td>Amplitude </td><td>     <input id=random_a  onchange="set(this)"> </td></tr>
+  <tr><td>Static delay </td><td>  <input id=random_d_0  onchange="set(this)"> </td></tr>
+  <tr><td>Random delay </td><td>  <input id=random_rd_0 onchange="set(this)"> </td></tr>
+  <tr><td>Amplitude </td><td>     <input id=random_a_0  onchange="set(this)"> </td></tr>
   <tr><td><h4>ArtNet DMX Input</h4></td></tr>
-  <tr><td>DMX Channel </td><td> <input id=dmx_channel onchange="set(this)"> </td></tr>
-  <tr><td>DMX Scale </td><td>     <input id=scale  onchange="set(this)"> </td></tr>
+  <tr><td>DMX Channel </td><td> <input id=dmx_channel_0 onchange="set(this)"> </td></tr>
+  <tr><td>DMX Scale </td><td>     <input id=scale_0  onchange="set(this)"> </td></tr>
   <tr><td><h4>Inverse Kinematic</h4></td></tr>
-  <tr><td>Scale ( per full turn ) </td><td>  <input id=ik_a onchange="set(this)"> </td></tr>
+  <tr><td>Scale ( per full turn ) </td><td>  <input id=ik_a_0 onchange="set(this)"> </td></tr>
   <tr><td><h3>Motion Limits</h3></td></tr>
-  <tr><td>Speed </td><td>     <input id=speed  onchange="set(this)"> </td></tr>
-  <tr><td>Accel / Torque </td><td>     <input id=accel  onchange="set(this)"> </td></tr>
-  <tr><td>Pos kp </td><td>     <input id=pos_kp  onchange="set(this)"> </td></tr>
-  <tr><td>Pos kd </td><td>     <input id=pos_kd  onchange="set(this)"> </td></tr>
-  <tr><td colspan=2><button id="reset_zero" onclick="this.value=1; set(this)">Reset position to zero</button> </td></tr>
-  <tr><td>Reset position to </td><td> <input type=number id=set_position onchange="set(this)"> </td></tr>
+  <tr><td>Speed </td><td>     <input id=speed_0  onchange="set(this)"> </td></tr>
+  <tr><td>Accel / Torque </td><td>     <input id=accel_0  onchange="set(this)"> </td></tr>
+  <tr><td>Pos kp </td><td>     <input id=pos_kp_0  onchange="set(this)"> </td></tr>
+  <tr><td>Pos kd </td><td>     <input id=pos_kd_0  onchange="set(this)"> </td></tr>
+  <tr><td>Reset position to 0</td><td><button id="reset_zero_0" onclick="this.value=1; set(this)">SET ZERO</button> </td></tr>
+  <tr><td>Reset position to </td><td> <input type=number id=set_position_0 onchange="set(this)"> </td></tr>
   <tr><td><h3>Misc</h3></td></tr>
-  <tr><td>Write new CAN ID </td><td> <input type=number id=set_can_id onchange="set(this)"> </td></tr>
+  <tr><td>Write new CAN ID </td><td> <input type=number id=set_can_id_0 onchange="set(this)"> </td></tr>
 </table>
 
 <table id=global_config>
@@ -88,25 +88,31 @@ function show(id, value) {
     // if there is no input element for this id, create a new editor row 
     // or add to one for matrix-like displays
     let key = id.replace(/_[0-9]+$/,'');
-    let tr_el = document.querySelector(`[key="${key}"]`);
-    if(!tr_el) {
+    let prototype = document.getElementById(key+'_0');
+    let tr_el = null;
+    if(prototype) 
+      tr_el = prototype.closest('tr');
+    else {
       tr_el = document.createElement('tr');
-      tr_el.setAttribute("key",key);
       // add label cell
       let label_td_el = document.createElement('td');
       label_td_el.innerText = key;
       tr_el.append(label_td_el);
-
       document.getElementById('global_config').append(tr_el);
     }
 
     // add editor cell
-    el = document.createElement('input');
+    if(prototype) // if we already have an editor for this key, clone it
+      el = prototype.cloneNode(true);
+    else { 
+      el = document.createElement('input');
+      el.setAttribute('onchange','set(this)');
+      el.setAttribute('size','6');
+    } 
     el.setAttribute('id',id);
-    el.setAttribute('onchange','set(this)');
-    el.setAttribute('size','6');
-    if(el && !isNaN(parseInt(value)))
+    if(el && !isNaN(parseInt(value))) // TODO get rid off
       el.setAttribute('type','number');
+
     let input_td_el = document.createElement('td');
     input_td_el.append(el);
     tr_el.append(input_td_el);
@@ -127,23 +133,19 @@ async function fetch_and_show(url) {
 }
 fetch_and_show("/config");
 
-let tpl = document.querySelector('.channel');
-for(let channel_id=0; channel_id<4; channel_id++) {
-  let channel_el = tpl.cloneNode(true);
-  channel_el.setAttribute('channel',channel_id);
-  tpl.insertAdjacentElement('beforebegin', channel_el);
-  let els = channel_el.querySelectorAll('.channel input:not(#channel_id), .channel select, .channel button');
-  for(let el of els)
-    el.id = el.id.replace(/_[0-9]+$/, '') + '_'+channel_id;
-  els = channel_el.querySelectorAll('.channel input');
-  for(let el of els)
-    el.setAttribute('type','number');
-  channel_el.querySelector('#channel').innerText = ''+channel_id;
+let tr_els = document.querySelectorAll('#channels tr');
+for(let tr_el of tr_els) {
+  let input_el = tr_el.querySelector('input,select,button');
+  if(!input_el) continue;
+  input_el.setAttribute('type','number');
+  tr_el.setAttribute('key',input_el.id);
 }
-tpl.remove();
 
-setInterval(()=>fetch_and_show("/status"),500);
-
+update_status = async() => {
+  await fetch_and_show("/status");
+  setTimeout(update_status,200);
+}
+update_status();
 
 </script>
 

@@ -240,10 +240,9 @@ void setup()
   httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
     request->send(204);
 
-    int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
-
     // handle persistent per-channel parameters
-    readFromRequest(&channels[channel_id], channel_id, request);
+    for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
+      readFromRequest(&channels[channel_id], channel_id, request);
     
     // check for global parameters
     readFromRequest(&global_params, -1, request);
