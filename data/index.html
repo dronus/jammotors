@@ -2,17 +2,18 @@
 
 <style>
 * { font-family: sans; }
-div, table {  display: table; margin: 10px; padding: 10px; border-radius: 10px; background-color: rgba(0,0,0,0.2); }
+div, table {  display: table; margin: 5px; padding: 5px; border-radius: 5px; background-color: rgba(0,0,0,0.2); }
 table { display: inline-block; vertical-align: top }
 input, button {margin: 1px}
 h2 input { width: 1em;}
 input[type="number"] { width: 5em; text-align: right;}
-h2,h3,h4 {margin-top: 5px; margin-bottom: 3px}
+h2 {text-align: center;}
+h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
+td:not(:first-child) { max-width: 5.5em; overflow: visible; }
 </style>
 
-<a href="#0">Channel 0</a> <a href="#1">Channel 1</a> <a href="#2">Channel 2</a> <a href="#3">Channel 3</a><br>
 <table class=channel>
-  <tr><th colspan=2><h2>Channel <span id=channel></span></h2></th></tr>
+  <tr><td colspan=2><h2>Channel <span id=channel></span></h2></td></tr>
   <tr><td>Driver</td><td>
     <select id=driver_id onchange="set(this)">
       <option value=0>Disabled</option>
@@ -42,7 +43,7 @@ h2,h3,h4 {margin-top: 5px; margin-bottom: 3px}
   <tr><td><h4>ArtNet DMX Input</h4></td></tr>
   <tr><td>DMX Channel </td><td> <input id=dmx_channel onchange="set(this)"> </td></tr>
   <tr><td>DMX Scale </td><td>     <input id=scale  onchange="set(this)"> </td></tr>
-  <tr><td><h4>Inverse Kinematic Motion</h4></td></tr>
+  <tr><td><h4>Inverse Kinematic</h4></td></tr>
   <tr><td>Scale ( per full turn ) </td><td>  <input id=ik_a onchange="set(this)"> </td></tr>
   <tr><td><h3>Motion Limits</h3></td></tr>
   <tr><td>Speed </td><td>     <input id=speed  onchange="set(this)"> </td></tr>
@@ -56,8 +57,8 @@ h2,h3,h4 {margin-top: 5px; margin-bottom: 3px}
 </table>
 
 <table id=global_config>
-  <tr><th colspan=2><h2>Global</h2></th></tr>
-  <tr><th colspan=2><h3>Status</h3></th></tr>
+  <tr><td colspan=2><h2>Global</h2></td></tr>
+  <tr><td colspan=2><h3>Status</h3></td></tr>
   <tr><td>Cycle time (ms) </td><td>   <input id=dt disbled> </td></tr>
   <tr><td>Worst cycle (ms) </td><td>  <input id=dt_max disbled> </td></tr>
   <tr><td>IK Position error </td><td>  <input id=ik_error disbled>  </td></tr>
@@ -72,10 +73,9 @@ h2,h3,h4 {margin-top: 5px; margin-bottom: 3px}
 
 <script>
 function set(el) {
-  let channel_id = document.location.hash.substring(1) || 0;
   let param = el.id;
   let value = el.value;
-  fetch(`/set?channel_id=${channel_id}&${param}=${value}`);
+  fetch(`/set?${param}=${value}`);
   el.blur();
   el.value = '';
 
@@ -85,30 +85,39 @@ function set(el) {
 function show(id, value) {
   let el = document.getElementById(id);
   if(!el) {
-    let container = document.getElementById('global_config');
-    if(container.lastChild && container.lastChild.id 
-      && container.lastChild.id.slice(-2) != id.slice(-2) 
-      && container.lastChild.id.slice(0,4) != id.slice(0,4) 
-        )
-      container.append(document.createElement("hr"));
-    let label = document.createElement('span');
-    label.innerText = id;
-    container.append(label);
+    // if there is no input element for this id, create a new editor row 
+    // or add to one for matrix-like displays
+    let key = id.replace(/_[0-9]+$/,'');
+    let tr_el = document.querySelector(`[key="${key}"]`);
+    if(!tr_el) {
+      tr_el = document.createElement('tr');
+      tr_el.setAttribute("key",key);
+      // add label cell
+      let label_td_el = document.createElement('td');
+      label_td_el.innerText = key;
+      tr_el.append(label_td_el);
+
+      document.getElementById('global_config').append(tr_el);
+    }
+
+    // add editor cell
     el = document.createElement('input');
     el.setAttribute('id',id);
     el.setAttribute('onchange','set(this)');
     el.setAttribute('size','6');
-    container.append(el);
+    if(el && !isNaN(parseInt(value)))
+      el.setAttribute('type','number');
+    let input_td_el = document.createElement('td');
+    input_td_el.append(el);
+    tr_el.append(input_td_el);
   }
-  if(el && !isNaN(parseInt(value)))
-    el.setAttribute('type','number');
-  if(el && el != document.activeElement)
+
+  if(el != document.activeElement)
     el.value = value;
 }
 
 async function fetch_and_show(url) {
-  let channel_id = document.location.hash.substring(1) || 0;
-  let body = await(fetch(url+`?channel_id=${channel_id}`).then(r => r.text()));
+  let body = await(fetch(url).then(r => r.text()));
   let lines = body.split('\n');
   for(let line of lines) {
     let parts = line.split(/ (.*)/s); // split on first " " only
@@ -116,41 +125,22 @@ async function fetch_and_show(url) {
       show(parts[0],parts[1]);
   }
 }
+fetch_and_show("/config");
 
-
+let tpl = document.querySelector('.channel');
 for(let channel_id=0; channel_id<4; channel_id++) {
-  let tpl = document.querySelector('.channel');
   let channel_el = tpl.cloneNode(true);
   channel_el.setAttribute('channel',channel_id);
-  tpl.insertAdjacentElement('afterend', channel_el);
+  tpl.insertAdjacentElement('beforebegin', channel_el);
   let els = channel_el.querySelectorAll('.channel input:not(#channel_id), .channel select, .channel button');
   for(let el of els)
     el.id = el.id.replace(/_[0-9]+$/, '') + '_'+channel_id;
+  els = channel_el.querySelectorAll('.channel input');
+  for(let el of els)
+    el.setAttribute('type','number');
   channel_el.querySelector('#channel').innerText = ''+channel_id;
 }
-
-
-function update_channel() {
-  let channel_id = document.location.hash.substring(1)  || 0;
-
-  let channel_el = document.querySelector(`[channel="${channel_id}"]`);
-  for(let el of document.querySelectorAll('.channel'))
-    el.style.display='none';
-  channel_el.style.display='';
-
-  fetch_and_show("/config");
-}
-update_channel();
-window.onhashchange = update_channel;
-
-document.body.addEventListener('keydown',(e) => {
-  if(e.target != document.body) return;
-  let channel = e.key.charCodeAt(0) - "a".charCodeAt(0);
-  if(channel >= 0 && channel < 4) {
-    document.location.hash = '#'+channel;
-    update_channel();
-  }
-});
+tpl.remove();
 
 setInterval(()=>fetch_and_show("/status"),500);
 

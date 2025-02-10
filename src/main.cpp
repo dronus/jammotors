@@ -272,9 +272,9 @@ void setup()
   // http "status" API to query current status
   httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;    
-    for(Param* p = channels[channel_id].getParams(); p; p=p->next())
-      if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+    for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
+      for(Param* p = channels[channel_id].getParams(); p; p=p->next())
+        if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
     for(Param* p = global_params.getParams(); p; p=p->next())    
       if(!p->desc->persist) response->printf("%s %d\n",p->desc->name,(int32_t)p->get());
     for(Param* p = status.getParams(); p; p = p->next())
@@ -300,7 +300,7 @@ void setup()
 
     // send current channel configuration
     //int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
-    for(uint8_t channel_id=0; i<max_channels; i++)
+    for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
       for(Param* p = channels[channel_id].getParams(); p; p = p->next())
         if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
 
