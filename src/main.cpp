@@ -140,25 +140,7 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
   }
 }
 
-void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *request) {
-
-  for(Param* p = params->getParams(); p ; p = p->next()) {
-
-    char prefs_name[32];
-    if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
-      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
-    else
-      snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
-
-    if (request->hasParam(prefs_name) ) {
-      int32_t value = request->getParam(prefs_name)->value().toInt();
-      p->set(value);
-      if(p->desc->persist)
-        prefs.putInt(prefs_name, value);
-    }
-  }
-}
-
+// set the parameter matching "key" from the given Params struct to "value".
 void readFromWs(Params* params, int16_t channel_id, char* key, char* value_str) {
 
   for(Param* p = params->getParams(); p ; p = p->next()) {
@@ -178,7 +160,7 @@ void readFromWs(Params* params, int16_t channel_id, char* key, char* value_str) 
   }
 }
 
-
+// set single parameter from incoming key, value message.
 void setFromWs(char* key, char* value_str)  {
 
   // handle persistent per-channel parameters
@@ -201,6 +183,24 @@ void setFromWs(char* key, char* value_str)  {
   //if (request->hasParam("reset") )
   //  ESP.restart();
 };
+
+// WebSocket "status" API to send current status
+void send_status() {
+  size_t len = 4096;
+  char buffer[len];
+  char* ptr = buffer;
+  for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
+    for(Param* p = channels[channel_id].getParams(); p; p=p->next())
+      if(!p->desc->persist) ptr += (size_t)sprintf(ptr, "%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
+  for(Param* p = global_params.getParams(); p; p=p->next())    
+    if(!p->desc->persist) ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name,(int32_t)p->get());
+  for(Param* p = status.getParams(); p; p = p->next())
+    ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name, (int32_t)(p->get()));
+  for(uint8_t i=0; i<max_axes; i++)
+    for(Param* p = axes[i].getParams(); p; p = p->next())
+      if(!p->desc->persist) ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
+  ws.textAll(buffer);
+}
 
 float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
 
@@ -278,23 +278,6 @@ void setup()
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
-
-  // http "status" API to query current status
-  httpServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
-    for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
-      for(Param* p = channels[channel_id].getParams(); p; p=p->next())
-        if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
-    for(Param* p = global_params.getParams(); p; p=p->next())    
-      if(!p->desc->persist) response->printf("%s %d\n",p->desc->name,(int32_t)p->get());
-    for(Param* p = status.getParams(); p; p = p->next())
-      response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
-    for(uint8_t i=0; i<max_axes; i++)
-      for(Param* p = axes[i].getParams(); p; p = p->next())
-        if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
-
-    request->send(response);
-  });
 
   // http "config" API to query persistent configuration
   httpServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -504,7 +487,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   }
 }
 
-uint32_t last_time;
+uint32_t last_time, last_status=0;
 
 void loop() 
 {
@@ -519,6 +502,11 @@ void loop()
   }
   status.dt = dt;
   status.dt_max = max(status.dt, status.dt_max);
+
+  if(time > last_status + 100) {
+    send_status();
+    last_status = time;
+  }
 
   ArduinoOTA.handle();
   if(WiFi.getMode() == WIFI_MODE_AP)

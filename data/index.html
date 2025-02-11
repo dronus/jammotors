@@ -150,11 +150,12 @@ for(let tr_el of tr_els) {
   tr_el.setAttribute('key',input_el.id);
 }
 
-update_status = async() => {
+/*update_status = async() => {
   await fetch_and_show("/status");
   setTimeout(update_status,200);
 }
 update_status();
+*/
 
 function updateGamepad() {
   
@@ -198,8 +199,7 @@ let open_socket=async function()
   }
   websocket.onmessage=async function(event)
   {
-    console.log(event.data);
-    // show_all(event.data);
+    show_all(event.data);
   }
 }
 open_socket();
