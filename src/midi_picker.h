@@ -3,6 +3,7 @@
 
 struct MidiPicker : public Params{
 
+  P_int32_t (midi_base_note,true,0,96,48);
   P_int32_t (midi_move_dur,true,0,10000,1000);
   P_int32_t (midi_pick_dur,true,0,1000 , 200);
   P_end;
@@ -20,7 +21,7 @@ struct MidiPicker : public Params{
     }
 
     for(Axis& axis : axes) {
-      axis.target += axis.midi_move_a * note;  // move towards pick location
+      axis.target += axis.midi_move_a * ( note - midi_base_note);  // move towards pick location
       if (t > midi_move_dur && t < midi_move_dur + midi_pick_dur / 2) // if moved long enough, pick down and release again
         axis.target += axis.midi_pick_a;
     }
