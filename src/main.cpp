@@ -52,7 +52,9 @@ const float pi = 3.1415926f;
 
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
-AsyncWebServer *httpServer;
+AsyncWebServer httpServer(80);
+AsyncWebSocket ws("/ws");
+
 DNSServer dnsServer;
 
 
@@ -157,6 +159,48 @@ void readFromRequest(Params* params, int16_t channel_id, AsyncWebServerRequest *
   }
 }
 
+void readFromWs(Params* params, int16_t channel_id, char* key, char* value_str) {
+
+  for(Param* p = params->getParams(); p ; p = p->next()) {
+
+    char prefs_name[32];
+    if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
+      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
+    else
+      snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
+
+    if ( strcmp(prefs_name, key) == 0 ) {
+      int32_t value = atoi(value_str);
+      p->set(value);
+      if(p->desc->persist)
+        prefs.putInt(prefs_name, value);
+    }
+  }
+}
+
+
+void setFromWs(char* key, char* value_str)  {
+
+  // handle persistent per-channel parameters
+  for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
+    readFromWs(&channels[channel_id], channel_id, key, value_str);
+  
+  // check for global parameters
+  readFromWs(&global_params, -1,  key, value_str);
+  // check for global string parameters
+  for(char* param : global_string_params)
+    if (strcmp(key, param) == 0 )
+      prefs.putString(param, value_str);
+  readFromWs(&midi_picker, -1,  key, value_str);
+
+  // check for axes parameters
+  for(uint8_t i=0; i<max_axes; i++)
+    readFromWs(&axes[i], i,  key, value_str);
+
+  // TODO handle instantaneous commands
+  //if (request->hasParam("reset") )
+  //  ESP.restart();
+};
 
 float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
 
@@ -231,41 +275,12 @@ void setup()
   ArduinoOTA.begin();
 
   // http Webserver for receiving commands
-  httpServer = new AsyncWebServer(80);
-
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Headers", "Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
 
-  // http "set" API to set and apply values
-  httpServer->on("/set", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(204);
-
-    // handle persistent per-channel parameters
-    for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
-      readFromRequest(&channels[channel_id], channel_id, request);
-    
-    // check for global parameters
-    readFromRequest(&global_params, -1, request);
-    // check for global string parameters
-    for(char* param : global_string_params)
-      if (request->hasParam(param) )
-        prefs.putString(param, request->getParam(param)->value());
-    readFromRequest(&midi_picker, -1, request);
-
-    // check for axes parameters
-    for(uint8_t i=0; i<max_axes; i++)
-      readFromRequest(&axes[i], i, request);
-
-    // handle instantaneous commands
-    if (request->hasParam("home") )
-      homing = request->getParam("home")->value().toInt();
-    if (request->hasParam("reset") )
-      ESP.restart();
-  });
-
   // http "status" API to query current status
-  httpServer->on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
+  httpServer.on("/status", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
       for(Param* p = channels[channel_id].getParams(); p; p=p->next())
@@ -282,7 +297,7 @@ void setup()
   });
 
   // http "config" API to query persistent configuration
-  httpServer->on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
+  httpServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     
     // send global configuration
@@ -307,9 +322,43 @@ void setup()
     request->send(response);
   });
 
+  // websocket "set" API to set and apply values
+  ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    if (type == WS_EVT_CONNECT) {
+      Serial.println("ws connect");
+      client->ping();
+    } else if (type == WS_EVT_DISCONNECT) {
+      Serial.println("ws disconnect");
+    } else if (type == WS_EVT_ERROR) {
+      Serial.println("ws error");
+    } else if (type == WS_EVT_DATA) {
+      AwsFrameInfo *info = (AwsFrameInfo *)arg;
+      String msg = "";
+      if (info->final && info->index == 0 && info->len == len) {
+        if (info->opcode == WS_TEXT) {
+          data[len] = 0;
+          char* key   = (char*)data;
+          char* value = NULL;
+          for(uint8_t i=0; i<len; i++) // look for first " " and split into key,value
+            if(key[i]==' ') {
+              key[i]=0;
+              value = &key[i+1];
+              break;
+            }
+          if(value != NULL) {
+            // Serial.printf("WS Set: %s = %s\n", key, value);
+            setFromWs(key,value);
+          }
+        }
+      }
+    }
+  });
+  httpServer.addHandler(&ws);
+
   // serve index.html single page UI
-  httpServer->serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
-  httpServer->begin();
+  httpServer.serveStatic("/", LittleFS, "/").setDefaultFile("index.html");
+
+  httpServer.begin();
   Serial.println("Webserver started.");
 
   // start ArtnetNode

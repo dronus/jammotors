@@ -75,8 +75,11 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
 function set(el, no_update) {
   let param = el.id;
   let value = el.value;
-  fetch(`/set?${param}=${value}`);
-
+  //  fetch(`/set?${param}=${value}`);
+  
+  if(websocket.readyState)
+    websocket.send(`${param} ${value}`);
+  
   if(!no_update) {
     el.blur();
     el.value = '';
@@ -124,14 +127,18 @@ function show(id, value) {
     el.value = value;
 }
 
-async function fetch_and_show(url) {
-  let body = await(fetch(url).then(r => r.text()));
-  let lines = body.split('\n');
+function show_all(data) {
+  let lines = data.split('\n');
   for(let line of lines) {
     let parts = line.split(/ (.*)/s); // split on first " " only
     if(parts[0])
       show(parts[0],parts[1]);
   }
+}
+
+async function fetch_and_show(url) {
+  let body = await(fetch(url).then(r => r.text()));
+  show_all(body);
 }
 fetch_and_show("/config");
 
@@ -169,10 +176,33 @@ function updateGamepad() {
       set(target_el,true);
     }
   }
-  setTimeout(updateGamepad,100);
+  setTimeout(updateGamepad,20);
 }
 
 updateGamepad();
+
+
+let uri=
+    (document.location.protocol=='https:'?'wss:':'ws:')
+    +'//'+document.location.hostname
+    +':' +document.location.port
+         +'/ws';
+let websocket=null;
+
+let open_socket=async function()
+{
+  websocket=new window.WebSocket(uri);
+  websocket.onclose=function()
+  {
+    setTimeout(open_socket,1000);
+  }
+  websocket.onmessage=async function(event)
+  {
+    console.log(event.data);
+    // show_all(event.data);
+  }
+}
+open_socket();
 
 </script>
 
