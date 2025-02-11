@@ -99,7 +99,8 @@ struct Status : public Params {
   P_end;
 } status;
 
-Axis axes[4];
+const uint8_t max_axes = 4;
+Axis axes[max_axes];
 
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
@@ -192,7 +193,7 @@ void setup()
     // initialize
     channel.init();
   }
-  for(uint8_t axis_id = 0; axis_id<3; axis_id++)
+  for(uint8_t axis_id = 0; axis_id<max_axes; axis_id++)
     readPrefs(&axes[axis_id],axis_id);
 
   // try to connect configured WiFi AP. If not possible, back up 
@@ -253,7 +254,7 @@ void setup()
     readFromRequest(&midi_picker, -1, request);
 
     // check for axes parameters
-    for(uint8_t i=0; i<3; i++)
+    for(uint8_t i=0; i<max_axes; i++)
       readFromRequest(&axes[i], i, request);
 
     // handle instantaneous commands
@@ -273,7 +274,7 @@ void setup()
       if(!p->desc->persist) response->printf("%s %d\n",p->desc->name,(int32_t)p->get());
     for(Param* p = status.getParams(); p; p = p->next())
       response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
-    for(uint8_t i=0; i<3; i++)
+    for(uint8_t i=0; i<max_axes; i++)
       for(Param* p = axes[i].getParams(); p; p = p->next())
         if(!p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
 
@@ -299,7 +300,7 @@ void setup()
         if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
 
     // send axes configuration
-    for(uint8_t i=0; i<3; i++)
+    for(uint8_t i=0; i<max_axes; i++)
       for(Param* p = axes[i].getParams(); p; p = p->next())
         if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
 
@@ -319,7 +320,7 @@ void setup()
         c.artnet_target = c.scale * ((uint32_t)data[c.dmx_channel-1]);
     }
     
-    for(uint8_t i=0; i<3; i++)
+    for(uint8_t i=0; i<max_axes; i++)
       if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
         axes[i].ik_dmx_target = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
 
@@ -370,9 +371,11 @@ void update_ik(uint32_t dt) {
     // for testing, enable IK even if only a single channel has IK mixed in.
     return;
 
-  float x = update_ik_axis(axes[0],dt);
-  float y = update_ik_axis(axes[1],dt);
-  float z = update_ik_axis(axes[2],dt);
+  float x     = update_ik_axis(axes[0],dt);
+  float y     = update_ik_axis(axes[1],dt);
+  float z     = update_ik_axis(axes[2],dt);
+  float delta = update_ik_axis(axes[3],dt);
+  channels[3].ik_target = delta / (float)pi;
 
   // define shoulder - target angle
   if(y == 0 && x == 0) return; // if y and z are zero, just keep last angles.
@@ -414,6 +417,7 @@ void update_ik_feedback() {
   float alpha = channels[0].position / (float)channels[0].ik_a * (float)pi;
   float beta  = channels[1].position / (float)channels[1].ik_a * (float)pi;
   float gamma = channels[2].position / (float)channels[2].ik_a * (float)pi;
+  float delta = channels[3].position / (float)channels[3].ik_a * (float)pi;
 
   float x=0, y=0, z=0;
   z += global_params.ik_length_b;
@@ -426,6 +430,7 @@ void update_ik_feedback() {
   axes[0].ik_feedback = x;
   axes[1].ik_feedback = y;
   axes[2].ik_feedback = z;
+  axes[3].ik_feedback = delta;
 
   float dx = axes[0].pos - x;
   float dy = axes[1].pos - y;
