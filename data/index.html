@@ -72,14 +72,16 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
 
 
 <script>
-function set(el) {
+function set(el, no_update) {
   let param = el.id;
   let value = el.value;
   fetch(`/set?${param}=${value}`);
-  el.blur();
-  el.value = '';
 
-  fetch_and_show("/config");
+  if(!no_update) {
+    el.blur();
+    el.value = '';
+    fetch_and_show("/config");
+  }
 }
 
 function show(id, value) {
@@ -146,6 +148,31 @@ update_status = async() => {
   setTimeout(update_status,200);
 }
 update_status();
+
+function updateGamepad() {
+  
+  var gamepads = navigator.getGamepads();
+  let gamepad = gamepads[0];
+
+  if(gamepad) {
+    for(let i=0; i<3; i++) {
+      let channel_el = document.getElementById("ik_hid_ch_"+i);
+      if(!channel_el) continue;
+
+      let channel = parseInt(channel_el.value);
+      if(channel < 0 || channel > gamepad.axes.length) continue;
+
+      let a = parseInt(document.getElementById("ik_hid_a_"+i).value);
+      let target_el = document.getElementById("ik_target_"+i);
+      let value = Math.round(gamepad.axes[channel] * a);
+      target_el.value = value;
+      set(target_el,true);
+    }
+  }
+  setTimeout(updateGamepad,100);
+}
+
+updateGamepad();
 
 </script>
 
