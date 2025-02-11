@@ -141,7 +141,7 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 }
 
 // set the parameter matching "key" from the given Params struct to "value".
-void readFromWs(Params* params, int16_t channel_id, char* key, char* value_str) {
+void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
 
   for(Param* p = params->getParams(); p ; p = p->next()) {
 
@@ -161,48 +161,62 @@ void readFromWs(Params* params, int16_t channel_id, char* key, char* value_str) 
 }
 
 // set single parameter from incoming key, value message.
-void setFromWs(char* key, char* value_str)  {
+void setFromWs(char* key_value)  {
+  Serial.printf("Set %s\n",key_value);
+  char* key       = key_value;
+  char* value_str = strchr(key_value,' ');
+  if(!value_str) return; // no value
+  *(value_str++) = 0; // mark end of key and advance
+  Serial.printf("Set %s %s\n",key,value_str);
 
   // handle persistent per-channel parameters
   for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
-    readFromWs(&channels[channel_id], channel_id, key, value_str);
+    setParam(&channels[channel_id], channel_id, key, value_str);
   
   // check for global parameters
-  readFromWs(&global_params, -1,  key, value_str);
+  setParam(&global_params, -1,  key, value_str);
   // check for global string parameters
   for(char* param : global_string_params)
     if (strcmp(key, param) == 0 )
       prefs.putString(param, value_str);
-  readFromWs(&midi_picker, -1,  key, value_str);
+  setParam(&midi_picker, -1,  key, value_str);
 
   // check for axes parameters
   for(uint8_t i=0; i<max_axes; i++)
-    readFromWs(&axes[i], i,  key, value_str);
+    setParam(&axes[i], i,  key, value_str);
 
   // TODO handle instantaneous commands
   //if (request->hasParam("reset") )
   //  ESP.restart();
 };
 
+void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, uint8_t index=-1) {
+  for(Param* p = params.getParams(); p; p = p->next())
+    if(p->desc->persist == persistent)
+      ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, index, (int32_t)(p->get()));
+}
+
+template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[], uint8_t len,  bool persistent) {
+  for(uint8_t i=0; i<len; i++)
+    writeParamsToBuffer(ptr, params[i], persistent, i );
+}
+
+void writeAllParamsToBuffer(char* buffer, bool persistent) {
+  char* ptr = buffer;
+  writeParamsArrayToBuffer(ptr, channels, max_channels, persistent);
+  writeParamsToBuffer(ptr, global_params, persistent);
+  writeParamsToBuffer(ptr, status, persistent);
+  writeParamsToBuffer(ptr, midi_picker, persistent);
+  writeParamsArrayToBuffer(ptr, axes, max_axes, persistent);
+}
+
 // WebSocket "status" API to send current status
 void send_status() {
   size_t len = 4096;
   char buffer[len];
-  char* ptr = buffer;
-  for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
-    for(Param* p = channels[channel_id].getParams(); p; p=p->next())
-      if(!p->desc->persist) ptr += (size_t)sprintf(ptr, "%s_%d %d\n",p->desc->name,channel_id,(int32_t)p->get());
-  for(Param* p = global_params.getParams(); p; p=p->next())    
-    if(!p->desc->persist) ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name,(int32_t)p->get());
-  for(Param* p = status.getParams(); p; p = p->next())
-    ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name, (int32_t)(p->get()));
-  for(uint8_t i=0; i<max_axes; i++)
-    for(Param* p = axes[i].getParams(); p; p = p->next())
-      if(!p->desc->persist) ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
+  writeAllParamsToBuffer(buffer, false);
   ws.textAll(buffer);
 }
-
-float ik_x_dmx_target = 0, ik_y_dmx_target = 0 , ik_z_dmx_target = 0;
 
 void setup() 
 {
@@ -282,56 +296,25 @@ void setup()
   // http "config" API to query persistent configuration
   httpServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
-    
-    // send global configuration
+    // send global configuration Params
+    size_t len = 4096;
+    char buffer[len];
+    writeAllParamsToBuffer(buffer, true);
+    response->print(buffer);
+    // send global string configuration
     for(char* param : global_string_params)
       response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
-    for(Param* p = global_params.getParams(); p; p = p->next())
-      if(p->desc->persist) response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
-    for(Param* p = midi_picker.getParams(); p; p = p->next())
-      if(p->desc->persist) response->printf("%s %d\n",p->desc->name, (int32_t)(p->get()));
-
-    // send current channel configuration
-    //int channel_id = request->hasParam("channel_id") ? request->getParam("channel_id")->value().toInt() : 0;
-    for(uint8_t channel_id=0; channel_id<max_channels; channel_id++)
-      for(Param* p = channels[channel_id].getParams(); p; p = p->next())
-        if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, channel_id, (int32_t)(p->get()));
-
-    // send axes configuration
-    for(uint8_t i=0; i<max_axes; i++)
-      for(Param* p = axes[i].getParams(); p; p = p->next())
-        if(p->desc->persist) response->printf("%s_%d %d\n",p->desc->name, i, (int32_t)(p->get()));
-
     request->send(response);
   });
 
   // websocket "set" API to set and apply values
   ws.onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-    if (type == WS_EVT_CONNECT) {
-      Serial.println("ws connect");
-      client->ping();
-    } else if (type == WS_EVT_DISCONNECT) {
-      Serial.println("ws disconnect");
-    } else if (type == WS_EVT_ERROR) {
-      Serial.println("ws error");
-    } else if (type == WS_EVT_DATA) {
+    if (type == WS_EVT_DATA) {
       AwsFrameInfo *info = (AwsFrameInfo *)arg;
-      String msg = "";
       if (info->final && info->index == 0 && info->len == len) {
         if (info->opcode == WS_TEXT) {
           data[len] = 0;
-          char* key   = (char*)data;
-          char* value = NULL;
-          for(uint8_t i=0; i<len; i++) // look for first " " and split into key,value
-            if(key[i]==' ') {
-              key[i]=0;
-              value = &key[i+1];
-              break;
-            }
-          if(value != NULL) {
-            // Serial.printf("WS Set: %s = %s\n", key, value);
-            setFromWs(key,value);
-          }
+          setFromWs((char*)data);
         }
       }
     }
