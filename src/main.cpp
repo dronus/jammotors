@@ -44,11 +44,13 @@ const float pi = 3.1415926f;
 #include "driver.h"
 #include "channel.h"
 #include "axis.h"
+#include "motion.h"
 #include "driver_stepper.h"
 #include "driver_servo.h"
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
 #include "midi_picker.h"
+
 
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
@@ -356,14 +358,6 @@ void setup()
   digitalWrite(statusLedPin,HIGH);
 }
 
-float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
-
-  phase += f * dt * 2.f * (float)PI / 1000.f / 1000.f;
-  phase = fmod(phase, ((float)PI * 2.f));
-
-  return o + a * sinf( phase + fb / 1000.f * sinf(phase) );
-}
-
 float compute_max_vel(float dx_target, float v0) {
 
   float a_max = global_params.ik_acc_max;
@@ -380,7 +374,7 @@ float compute_max_vel(float dx_target, float v0) {
 }
 
 float update_ik_axis(Axis& axis, uint32_t dt) {
-  axis.ik_target += fm_osc(axis.ik_manual + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
+  axis.ik_target += motion_fm_osc(axis.ik_manual + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
 
   float dx = axis.ik_target - axis.pos;
   float vel = compute_max_vel(dx, axis.vel);

@@ -1,3 +1,5 @@
+#include "motion.h"
+
 struct Channel : public Params {
 
   P_uint8_t (driver_id,true, 0, 0xFF, 0);
@@ -11,8 +13,8 @@ struct Channel : public Params {
   P_int32_t (scale, true,0, 10000,  0);
   P_int32_t (offset, true,-100000, 100000,  0);
   P_int32_t (osc_f,true, 0, 10000,  1000);
+  P_int32_t (osc_fb,true, 0, 10000,  1000);
   P_int32_t (osc_a,true, 0, 100000, 0);
-  P_int32_t (osc_p,true, 0, 100000, 0);
   P_int32_t (random_d, true,0, 100000, 1000);
   P_int32_t (random_rd,true,0, 100000, 1000);
   P_int32_t (random_a ,true,0, 200000, 0);
@@ -62,9 +64,8 @@ struct Channel : public Params {
     target += artnet_target;
    
     // add oscillatory movement 
-    osc_phase += osc_f * dt * 2.f * (float)PI / 1000.f / 1000.f;
-    osc_phase = fmod(osc_phase, ((float)PI * 2.f));
-    target += floor( osc_a * sinf(osc_phase + osc_p * 2.f * (float)PI / 1000.f) );
+
+    target += motion_fm_osc(0, osc_a, osc_f, osc_fb, dt, osc_phase);
     
     // add random movement
     random_countdown -= dt;
