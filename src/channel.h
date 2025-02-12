@@ -64,7 +64,7 @@ struct Channel : public Params {
     // add oscillatory movement 
     osc_phase += osc_f * dt * 2.f * (float)PI / 1000.f / 1000.f;
     osc_phase = fmod(osc_phase, ((float)PI * 2.f));
-    target += floor( osc_a * sin(osc_phase + osc_p * 2.f * (float)PI / 1000.f) );
+    target += floor( osc_a * sinf(osc_phase + osc_p * 2.f * (float)PI / 1000.f) );
     
     // add random movement
     random_countdown -= dt;

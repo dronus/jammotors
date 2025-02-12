@@ -361,7 +361,7 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
   phase += f * dt * 2.f * (float)PI / 1000.f / 1000.f;
   phase = fmod(phase, ((float)PI * 2.f));
 
-  return o + a * sin( phase + fb / 1000.f * sin(phase) );
+  return o + a * sinf( phase + fb / 1000.f * sinf(phase) );
 }
 
 float compute_max_vel(float dx_target, float v0) {
@@ -418,7 +418,7 @@ void update_ik(uint32_t dt) {
   float ros = global_params.ik_length_c; // shoulder offset
   if(rot < ros) return; // target to close
   float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
-  float alpha = atan2(x,y) - acos ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
+  float alpha = atan2f(x,y) - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
   channels[0].ik_target = alpha  / (float)pi;
 
   // get elbow angle by triangle cosine equation 
@@ -428,11 +428,11 @@ void update_ik(uint32_t dt) {
   if(c>a+b) return; // point out of reach - arm to short.
   if(b>a+c) return; // point out of reach - lower arm to long.
   if(a>b+c) return; // point out of reach - upper arm to long.
-  float gamma = acos ((a*a + b*b - c*c) / (2 * a * b)) - pi;
+  float gamma = acosf ((a*a + b*b - c*c) / (2 * a * b)) - pi;
   
   // get shoulder angle by triangle cosine equation and atan offset
   if(z==0 && rst==0) return; // point undefined.
-  float beta  = acos ((a*a + c*c - b*b) / (2 * a * c)) - atan2(rst,z);
+  float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
   channels[1].ik_target = beta  / (float)pi;
   channels[2].ik_target = gamma / (float)pi;
 }
@@ -441,8 +441,8 @@ void update_ik(uint32_t dt) {
 void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
   float x_in = _x_in;
   float y_in = _y_in;
-  x_out =  x_in * cos(alpha) - y_in * sin(alpha);
-  y_out =  x_in * sin(alpha) + y_in * cos(alpha);
+  x_out =  x_in * cosf(alpha) - y_in * sinf(alpha);
+  y_out =  x_in * sinf(alpha) + y_in * cosf(alpha);
 }
 
 void update_ik_feedback() {
