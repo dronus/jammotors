@@ -364,16 +364,31 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
   return o + a * sin( phase + fb / 1000.f * sin(phase) );
 }
 
+float compute_max_vel(float dx_target, float v0) {
+
+  float a_max = global_params.ik_acc_max;
+  // compute time to stop under maximal decelleration
+  float dt = abs(v0) / a_max;
+
+  // compute distance travelled under maximal decelleration
+  float dx = 1.f / 2.f * a_max * dt * dt;
+  
+  if(dx >= abs(dx_target)) // we need to brake.
+    return 0.f;
+  else // we need to accelerate, cruise or dampen close to target.
+    return global_params.ik_vel_k / 1000.f * dx_target;
+}
+
 float update_ik_axis(Axis& axis, uint32_t dt) {
   axis.ik_target += fm_osc(axis.ik_manual + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
 
-  float vel = ( axis.target - axis.pos ) * global_params.ik_vel_k / 1000.f;
+  float dx = axis.ik_target - axis.pos;
+  float vel = compute_max_vel(dx, axis.vel);
   vel = min( vel,  global_params.ik_vel_max * 1.f);
   vel = max( vel, -global_params.ik_vel_max * 1.f);
 
   float acc = ( vel - axis.vel ) / ( dt / 1000.f);
   float acc_limit =  global_params.ik_acc_max;
-  // if ( acc * vel < 0) acc_limit *= 5.f;   // allow for stronger braking to prevent overshoot
   acc = min( acc,  acc_limit);
   acc = max( acc, -acc_limit);
 
