@@ -362,7 +362,7 @@ float fm_osc(float o, float a, float f, float fb, uint32_t dt, float &phase) {
 }
 
 float update_ik_axis(Axis& axis, uint32_t dt) {
-  axis.target += fm_osc(axis.ik_target + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
+  axis.ik_target += fm_osc(axis.ik_manual + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
 
   float vel = ( axis.target - axis.pos ) * global_params.ik_vel_k / 1000.f;
   vel = min( vel,  global_params.ik_vel_max * 1.f);
@@ -499,7 +499,7 @@ void loop()
 
  
   for(Axis& axis : axes)
-    axis.target = 0;
+    axis.ik_target = 0;
   midi_picker.update(axes,status.dt);
   update_ik(status.dt);
   update_ik_feedback(); // to get IK error

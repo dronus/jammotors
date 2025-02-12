@@ -2,6 +2,7 @@
 
 struct Axis : public  Params {
   P_int32_t (ik_target ,false,-1000, 1000, 0);
+  P_int32_t (ik_manual ,false,-1000, 1000, 0);
   P_int32_t (ik_offset,true, -1000,  1000, 0);
   P_int32_t (ik_feedback ,false,0,0, 0);
   P_int32_t (ik_osc_a ,true, -1000,  1000, 0);

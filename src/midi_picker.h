@@ -21,9 +21,9 @@ struct MidiPicker : public Params{
     }
 
     for(Axis& axis : axes) {
-      axis.target += axis.midi_move_a * ( note - midi_base_note);  // move towards pick location
+      axis.ik_target += axis.midi_move_a * ( note - midi_base_note);  // move towards pick location
       if (t > midi_move_dur && t < midi_move_dur + midi_pick_dur / 2) // if moved long enough, pick down and release again
-        axis.target += axis.midi_pick_a;
+        axis.ik_target += axis.midi_pick_a;
     }
 
     t += dt;
