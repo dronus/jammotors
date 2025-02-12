@@ -190,14 +190,17 @@ void setFromWs(char* key_value)  {
   //  ESP.restart();
 };
 
-void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, uint8_t index=-1) {
+void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
   for(Param* p = params.getParams(); p; p = p->next())
     if(p->desc->persist == persistent)
-      ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, index, (int32_t)(p->get()));
+      if(index == -1)
+        ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name, (int32_t)(p->get()));
+      else
+        ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, index, (int32_t)(p->get()));
 }
 
 template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[], uint8_t len,  bool persistent) {
-  for(uint8_t i=0; i<len; i++)
+  for(int8_t i=0; i<len; i++)
     writeParamsToBuffer(ptr, params[i], persistent, i );
 }
 
