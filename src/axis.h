@@ -19,4 +19,36 @@ struct Axis : public  Params {
   float pos=0, vel=0, target=0;
   float ik_phase=0;
   float ik_dmx_target;
+  
+  float compute_max_vel(float dx_target, float v0, float a_max, float vel_k) {
+
+    // compute time to stop under maximal decelleration
+    float dt = abs(v0) / a_max;
+
+    // compute distance travelled under maximal decelleration
+    float dx = 1.f / 2.f * a_max * dt * dt;
+    
+    if(dx >= abs(dx_target)) // we need to brake.
+      return 0.f;
+    else // we need to accelerate, cruise or dampen close to target.
+      return vel_k / 1000.f * dx_target;
+  }
+
+  float update(uint32_t dt, float vel_max, float acc_max, float vel_k) {
+    ik_target += motion_fm_osc(ik_manual + ik_offset + ik_dmx_target, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
+
+    float dx = ik_target - pos;
+    float v_target = compute_max_vel(dx, vel, acc_max, vel_k);
+    v_target = min( v_target,  vel_max * 1.f);
+    v_target = max( v_target, -vel_max * 1.f);
+
+    float acc = ( v_target - vel ) / ( dt / 1000.f);
+    acc = min( acc,  acc_max);
+    acc = max( acc, -acc_max);
+
+    vel += acc * dt / 1000.f;
+    pos += vel * dt / 1000.f;
+
+    return pos;
+  }
 };

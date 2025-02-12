@@ -45,11 +45,13 @@ const float pi = 3.1415926f;
 #include "channel.h"
 #include "axis.h"
 #include "motion.h"
+#include "kinematic.h"
 #include "driver_stepper.h"
 #include "driver_servo.h"
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
 #include "midi_picker.h"
+
 
 
 Preferences prefs;
@@ -65,6 +67,7 @@ WiFiUDP udpIn;
 unsigned int oscInPort = 8888;
 MicroOscUdp<1024> oscReceiver(&udpIn, IPAddress(0,0,0,0), 0);
 MidiPicker midi_picker;
+Kinematic kinematic;
 
 int homing = 0;
 
@@ -85,16 +88,6 @@ char* global_string_params[] = {
   "ssid",
   "psk"
 };
-
-struct GlobalParams : public Params {
-  P_int32_t (ik_length_c,true,    0,  1000,  90);
-  P_int32_t (ik_length_a,true,    0,  1000, 330);
-  P_int32_t (ik_length_b,true,    0,  1000, 390);
-  P_int32_t (ik_vel_max,true,    0,  10000,  500);
-  P_int32_t (ik_vel_k  ,true,    0, 100000, 5000);
-  P_int32_t (ik_acc_max,true,    0, 100000, 5000);
-  P_end;
-} global_params;
 
 struct Status : public Params {
   P_int32_t (dt, false, 0, 0, 0);
@@ -176,7 +169,7 @@ void setFromWs(char* key_value)  {
     setParam(&channels[channel_id], channel_id, key, value_str);
   
   // check for global parameters
-  setParam(&global_params, -1,  key, value_str);
+  setParam(&kinematic, -1,  key, value_str);
   // check for global string parameters
   for(char* param : global_string_params)
     if (strcmp(key, param) == 0 )
@@ -209,7 +202,7 @@ template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[
 void writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
   writeParamsArrayToBuffer(ptr, channels, max_channels, persistent);
-  writeParamsToBuffer(ptr, global_params, persistent);
+  writeParamsToBuffer(ptr, kinematic, persistent);
   writeParamsToBuffer(ptr, status, persistent);
   writeParamsToBuffer(ptr, midi_picker, persistent);
   writeParamsArrayToBuffer(ptr, axes, max_axes, persistent);
@@ -246,7 +239,7 @@ void setup()
   prefs.begin("motor");
   Serial.println("Prefs started.");
 
-  readPrefs(&global_params);
+  readPrefs(&kinematic);
   readPrefs(&midi_picker);
 
   for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
@@ -358,114 +351,6 @@ void setup()
   digitalWrite(statusLedPin,HIGH);
 }
 
-float compute_max_vel(float dx_target, float v0) {
-
-  float a_max = global_params.ik_acc_max;
-  // compute time to stop under maximal decelleration
-  float dt = abs(v0) / a_max;
-
-  // compute distance travelled under maximal decelleration
-  float dx = 1.f / 2.f * a_max * dt * dt;
-  
-  if(dx >= abs(dx_target)) // we need to brake.
-    return 0.f;
-  else // we need to accelerate, cruise or dampen close to target.
-    return global_params.ik_vel_k / 1000.f * dx_target;
-}
-
-float update_ik_axis(Axis& axis, uint32_t dt) {
-  axis.ik_target += motion_fm_osc(axis.ik_manual + axis.ik_offset + axis.ik_dmx_target, axis.ik_osc_a, axis.ik_osc_f, axis.ik_osc_fb, dt, axis.ik_phase);
-
-  float dx = axis.ik_target - axis.pos;
-  float vel = compute_max_vel(dx, axis.vel);
-  vel = min( vel,  global_params.ik_vel_max * 1.f);
-  vel = max( vel, -global_params.ik_vel_max * 1.f);
-
-  float acc = ( vel - axis.vel ) / ( dt / 1000.f);
-  float acc_limit =  global_params.ik_acc_max;
-  acc = min( acc,  acc_limit);
-  acc = max( acc, -acc_limit);
-
-  axis.vel += acc * dt / 1000.f;
-  axis.pos += axis.vel * dt / 1000.f;
-
-  return axis.pos;
-}
-
-void update_ik(uint32_t dt) {
-
-  if(channels[0].ik_a == 0 && channels[1].ik_a == 0 && channels[2].ik_a == 0) 
-    // for testing, enable IK even if only a single channel has IK mixed in.
-    return;
-
-  float x     = update_ik_axis(axes[0],dt);
-  float y     = update_ik_axis(axes[1],dt);
-  float z     = update_ik_axis(axes[2],dt);
-  float delta = update_ik_axis(axes[3],dt);
-  channels[3].ik_target = delta / (float)pi;
-
-  // define shoulder - target angle
-  if(y == 0 && x == 0) return; // if y and z are zero, just keep last angles.
- 
-  // define xy-plane origin - shoulder - target triangle
-  float rot = sqrtf(x*x+y*y); // span origin to target in xy-plane
-  float ros = global_params.ik_length_c; // shoulder offset
-  if(rot < ros) return; // target to close
-  float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
-  float alpha = atan2f(x,y) - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
-  channels[0].ik_target = alpha  / (float)pi;
-
-  // get elbow angle by triangle cosine equation 
-  float a = global_params.ik_length_a; // upper arm
-  float b = global_params.ik_length_b; // lower arm
-  float c = sqrtf(rst*rst + z*z); // span to target
-  if(c>a+b) return; // point out of reach - arm to short.
-  if(b>a+c) return; // point out of reach - lower arm to long.
-  if(a>b+c) return; // point out of reach - upper arm to long.
-  float gamma = acosf ((a*a + b*b - c*c) / (2 * a * b)) - pi;
-  
-  // get shoulder angle by triangle cosine equation and atan offset
-  if(z==0 && rst==0) return; // point undefined.
-  float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
-  channels[1].ik_target = beta  / (float)pi;
-  channels[2].ik_target = gamma / (float)pi;
-}
-
-
-void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
-  float x_in = _x_in;
-  float y_in = _y_in;
-  x_out =  x_in * cosf(alpha) - y_in * sinf(alpha);
-  y_out =  x_in * sinf(alpha) + y_in * cosf(alpha);
-}
-
-void update_ik_feedback() {
-  
-  float alpha = channels[0].position / (float)channels[0].ik_a * (float)pi;
-  float beta  = channels[1].position / (float)channels[1].ik_a * (float)pi;
-  float gamma = channels[2].position / (float)channels[2].ik_a * (float)pi;
-  float delta = channels[3].position / (float)channels[3].ik_a * (float)pi;
-
-  float x=0, y=0, z=0;
-  z += global_params.ik_length_b;
-  rot(y,z,gamma,y,z);
-  z += global_params.ik_length_a;
-  rot(y,z,beta,y,z);
-  x += global_params.ik_length_c;
-  rot(y,x,alpha,y,x);
-
-  axes[0].ik_feedback = x;
-  axes[1].ik_feedback = y;
-  axes[2].ik_feedback = z;
-  axes[3].ik_feedback = delta;
-
-  float dx = axes[0].pos - x;
-  float dy = axes[1].pos - y;
-  float dz = axes[2].pos - z;
-
-  status.ik_error = sqrtf( dx*dx + dy*dy + dz*dz );
-}
-
 void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   Serial.printf("OSC in : %s",receivedOscMessage.buffer);
 
@@ -509,12 +394,11 @@ void loop()
   artnetnode.read();
   oscReceiver.onOscMessageReceived( oscMessageParser );
 
- 
   for(Axis& axis : axes)
     axis.ik_target = 0;
   midi_picker.update(axes,status.dt);
-  update_ik(status.dt);
-  update_ik_feedback(); // to get IK error
+  kinematic.update(status.dt, axes, channels);
+  status.ik_error = kinematic.update_feedback(channels, axes); // to get IK error
 
   for(Channel& c : channels)
     c.update(status.dt);
