@@ -231,7 +231,7 @@ void motionLoop(void* dummy){
     status.dt_max = max(status.dt, status.dt_max);
 
     for(Axis& axis : axes)
-      axis.ik_target = 0;
+      axis.ik_input = 0;
     midi_picker.update(axes,status.dt);
     kinematic.update(status.dt, axes, channels);
     status.ik_error = kinematic.update_feedback(channels, axes); // to get IK error
