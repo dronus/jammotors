@@ -70,6 +70,7 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td><h3>Inverse Kinematics</h3> </td></tr>
 </table>
 
+<canvas id=stats width="256" height="800">
 
 <script>
 function set(el, no_update) {
@@ -128,12 +129,26 @@ function show(id, value) {
 }
 
 function show_all(data) {
-  let lines = data.split('\n');
-  for(let line of lines) {
-    let parts = line.split(/ (.*)/s); // split on first " " only
-    if(parts[0])
-      show(parts[0],parts[1]);
-  }
+  // convert lines with key delimited by single whitespace to a map
+  let params = data.split('\n').map( line => line.split(/ (.*)/s));
+  
+ 
+  for(let param of params)
+    if(param.length>=2)
+      show(param[0], param[1]);
+
+  let canvas = document.querySelector('canvas');
+  let ctx = canvas.getContext("2d");
+  ctx.drawImage(canvas,-1,0);
+
+  let plots = ["ik_target","ik_feedback"];
+  let i=0;
+  ctx.fillStyle="#ffffff";
+  ctx.fillRect(canvas.width-2,0,2,canvas.height);
+  ctx.fillStyle="#000000";
+  for(let param of params)
+    if(param.length>=2 && plots.includes(param[0].replace(/_[0-9]+$/,'')))
+      ctx.fillRect(canvas.width-2,canvas.height * (parseInt(param[1])/1000. + i++ ) / (plots.length*3), 2,2);
 }
 
 async function fetch_and_show(url) {
@@ -149,13 +164,6 @@ for(let tr_el of tr_els) {
   input_el.setAttribute('type','number');
   tr_el.setAttribute('key',input_el.id);
 }
-
-/*update_status = async() => {
-  await fetch_and_show("/status");
-  setTimeout(update_status,200);
-}
-update_status();
-*/
 
 function updateGamepad() {
   
