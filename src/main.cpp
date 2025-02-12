@@ -216,6 +216,32 @@ void send_status() {
   ws.textAll(buffer);
 }
 
+uint32_t last_time;
+const uint32_t cycle_time = 10;
+void motionLoop(void* dummy){
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  while(true) {
+    vTaskDelayUntil( &xLastWakeTime, cycle_time );
+    // compute delta time
+    uint32_t time = millis();
+    uint32_t dt = time - last_time;
+    if(last_time == 0) dt=1;
+    last_time = time;
+    status.dt = dt;
+    status.dt_max = max(status.dt, status.dt_max);
+
+    for(Axis& axis : axes)
+      axis.ik_target = 0;
+    midi_picker.update(axes,status.dt);
+    kinematic.update(status.dt, axes, channels);
+    status.ik_error = kinematic.update_feedback(channels, axes); // to get IK error
+
+    for(Channel& c : channels)
+      c.update(status.dt);
+     
+  }
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -345,7 +371,17 @@ void setup()
   udpIn.begin(oscInPort);
   Serial.println("OSC receiver started.");
  
-  vTaskPrioritySet(NULL, 4);
+  vTaskPrioritySet(NULL, 2);
+ 
+  // start motion task
+  
+  xTaskCreatePinnedToCore(
+                    motionLoop,
+                    "MotionLoop",          /* Text name for the task. */
+                    4096,      /* Stack size in words, not bytes. */
+                    NULL,    /* Parameter passed into the task. */
+                    6,/* Priority at which the task is created. */
+                    NULL ,1); 
  
   // light status led
   digitalWrite(statusLedPin,HIGH);
@@ -367,39 +403,20 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   }
 }
 
-uint32_t last_time, last_status=0;
-
+uint32_t last_status=0;
 void loop() 
 {
-  // compute delta time
-  uint32_t time = millis();
-  uint32_t dt = time - last_time;
-  if(last_time == 0) dt=1;
-  last_time = time;
-  if(dt < 10) {
-    delay(10-dt);
-    dt = 10;
-  }
-  status.dt = dt;
-  status.dt_max = max(status.dt, status.dt_max);
-
-  if(time > last_status + 100) {
-    send_status();
-    last_status = time;
-  }
-
   ArduinoOTA.handle();
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
   artnetnode.read();
   oscReceiver.onOscMessageReceived( oscMessageParser );
 
-  for(Axis& axis : axes)
-    axis.ik_target = 0;
-  midi_picker.update(axes,status.dt);
-  kinematic.update(status.dt, axes, channels);
-  status.ik_error = kinematic.update_feedback(channels, axes); // to get IK error
+  uint32_t time = millis();
+  if(time > last_status + 100) {
+    send_status();
+    last_status = time;
+  }
 
-  for(Channel& c : channels)
-    c.update(status.dt);
+  delay(10);
 }
