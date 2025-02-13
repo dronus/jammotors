@@ -39,8 +39,11 @@ struct DriverCybergear : public Driver{
     // update enable state
     if(!c.enabled && c.last_enabled)
       cybergear.stop_motor();
-    if(c.enabled && !c.last_enabled)
+    if(c.enabled && !c.last_enabled) {
+      cybergear.init_motor(MODE_MOTION);
+      cybergear.set_limit_torque(torque);
       cybergear.enable_motor();
+    }
 
     // write new can_id if requested to
     if(c.set_can_id > 0) {
