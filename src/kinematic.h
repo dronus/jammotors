@@ -74,9 +74,9 @@ struct Kinematic : public Params {
     axes[2].ik_feedback = z;
     axes[3].ik_feedback = delta;
 
-    float dx = axes[0].pos - x;
-    float dy = axes[1].pos - y;
-    float dz = axes[2].pos - z;
+    float dx = axes[0].ik_pos - x;
+    float dy = axes[1].ik_pos - y;
+    float dz = axes[2].ik_pos - z;
 
     return sqrtf( dx*dx + dy*dy + dz*dz );
   }
