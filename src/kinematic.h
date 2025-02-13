@@ -9,7 +9,7 @@ struct Kinematic : public Params {
   P_int32_t (ik_length_a,true,    0,  1000, 330);
   P_int32_t (ik_length_b,true,    0,  1000, 390);
   P_int32_t (ik_vel_max,true,    0,  10000,  500);
-  P_int32_t (ik_vel_k  ,true,    0, 100000, 5000);
+  P_int32_t (ik_vel_k  ,true,    0,   1000,  100);
   P_int32_t (ik_acc_max,true,    0, 100000, 5000);
   P_end;
 

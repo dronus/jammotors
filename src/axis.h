@@ -32,7 +32,7 @@ struct Axis : public  Params {
     if(dx >= abs(dx_target)) // we need to brake.
       return 0.f;
     else // we need to accelerate, cruise or dampen close to target.
-      return vel_k / 1000.f * dx_target;
+      return vel_k * dx_target;
   }
 
   float update(uint32_t dt, float vel_max, float acc_max, float vel_k) {
