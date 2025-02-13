@@ -14,7 +14,7 @@ struct Channel : public Params {
   P_int32_t (scale, true,0, 10000,  0);
   P_int32_t (offset, true,-100000, 100000,  0);
   P_int32_t (osc_f,true, 0, 10000,  1000);
-  P_int32_t (osc_fb,true, 0, 10000,  1000);
+  P_int32_t (osc_fb,true, 0, 10000,  0);
   P_int32_t (osc_a,true, 0, 100000, 0);
   P_int32_t (random_d, true,0, 100000, 1000);
   P_int32_t (random_rd,true,0, 100000, 1000);

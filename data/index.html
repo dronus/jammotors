@@ -196,9 +196,14 @@ updateGamepad();
 // WebSocket connection for receiving status updates and sending parameters
 let uri=(document.location.protocol=='https:'?'wss:':'ws:')+'//'+document.location.hostname+':' +document.location.port+'/ws';
 let websocket=null;
+let status_timeout = 0;
 let open_socket=async function()
 {
   websocket=new window.WebSocket(uri);
+  websocket.onopen=function()
+  {
+    websocket.send('send_status 1\n');
+  }
   websocket.onclose=function()
   {
     setTimeout(open_socket,1000); // try to repoen connection after one second
@@ -206,6 +211,8 @@ let open_socket=async function()
   websocket.onmessage=async function(event)
   {
     show_all(event.data);
+    clearTimeout(status_timeout);
+    status_timeout = setTimeout(()=>websocket.send('send_status 1\n'), 25);
   }
 }
 open_socket();

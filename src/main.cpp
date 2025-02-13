@@ -93,6 +93,7 @@ struct Status : public Params {
   P_int32_t (dt, false, 0, 0, 0);
   P_int32_t (dt_max, false, 0, 0, 0);
   P_int32_t (ik_error, false, 0, 0, 0);
+  P_uint8_t  (send_status,false,0,1,0);
   P_end;
 } status;
 
@@ -169,6 +170,7 @@ void setFromWs(char* key_value)  {
     setParam(&channels[channel_id], channel_id, key, value_str);
   
   // check for global parameters
+  setParam(&status, -1,  key, value_str);
   setParam(&kinematic, -1,  key, value_str);
   // check for global string parameters
   for(char* param : global_string_params)
@@ -403,7 +405,6 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   }
 }
 
-uint32_t last_status=0;
 void loop() 
 {
   ArduinoOTA.handle();
@@ -412,10 +413,9 @@ void loop()
   artnetnode.read();
   oscReceiver.onOscMessageReceived( oscMessageParser );
 
-  uint32_t time = millis();
-  if(time > last_status + 100) {
+  if(status.send_status) {
+    status.send_status = 0;
     send_status();
-    last_status = time;
   }
 
   delay(10);
