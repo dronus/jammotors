@@ -396,10 +396,14 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     const uint8_t* midi;
     receivedOscMessage.nextAsMidi(&midi);    
     uint8_t type = midi[0] & 0xF0;
-    Serial.printf("OSC MIDI cmd/channel:%d note:%d velocity:%d ",midi[0],midi[1],midi[2]);
+    Serial.printf("MIDI cmd/channel:%d d1:%d d2:%d ",midi[0],midi[1],midi[2]);
     if(type == 0x90) {// note on
-      Serial.printf("note_on ",midi[0],midi[1],midi[2]);
       midi_picker.pick(midi[1]);
+    }
+    if(type == 0xB0) {// CC change
+      for(uint8_t i=0; i<max_axes; i++)
+        if(axes[i].ik_midi_cc == midi[1])
+          axes[i].ik_midi_target = axes[i].ik_midi_a / 128.f * midi[2];
     }
     Serial.println();
   }

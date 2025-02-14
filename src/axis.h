@@ -10,6 +10,9 @@ struct Axis : public  Params {
   P_int32_t (ik_osc_fb,true,     0,  2000, 0);
   P_uint8_t (ik_dmx_ch,true,     0,   255, 10);
   P_int32_t (ik_dmx_a ,true,-10000, 10000, 0);
+  P_uint8_t (ik_midi_cc,true,     0,   127, 0);
+  P_int32_t (ik_midi_a ,true,-10000, 10000, 0);
+  P_float   (ik_midi_target ,false,0, 0, 0);
   P_int32_t (ik_hid_a  ,true,-10000, 10000, 0);
   P_int32_t (ik_hid_ch ,true,-1, 15, -1);
   P_int32_t (midi_move_a ,true,-1000, 1000, 0);
@@ -36,7 +39,7 @@ struct Axis : public  Params {
   }
 
   float update(uint32_t dt, float vel_max, float acc_max, float vel_k) {
-    ik_input += motion_fm_osc(ik_manual + ik_offset + ik_dmx_target, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
+    ik_input += motion_fm_osc(ik_manual + ik_offset + ik_dmx_target + ik_midi_target, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
     ik_target = ik_input;
 
     float dx = ik_input - ik_pos;
