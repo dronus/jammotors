@@ -63,9 +63,9 @@ DNSServer dnsServer;
 
 
 #include <WiFiUdp.h>
-WiFiUDP udpIn;
+WiFiUDP udp;
 unsigned int oscInPort = 8888;
-MicroOscUdp<1024> oscReceiver(&udpIn, IPAddress(0,0,0,0), 0);
+MicroOscUdp<1024> oscUdp(&udp, IPAddress(192,168,0,126), 8888);
 MidiPicker midi_picker;
 Kinematic kinematic;
 
@@ -370,7 +370,7 @@ void setup()
   Serial.println("ArtNet node started.");
 
   // start OSC Udp receiver
-  udpIn.begin(oscInPort);
+  udp.begin(oscInPort);
   Serial.println("OSC receiver started.");
  
   vTaskPrioritySet(NULL, 2);
@@ -415,7 +415,15 @@ void loop()
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
   artnetnode.read();
-  oscReceiver.onOscMessageReceived( oscMessageParser );
+  oscUdp.onOscMessageReceived( oscMessageParser );
+
+  for(uint8_t i=0; i<max_axes; i++)
+    if(axes[i].ik_midi_cc) {
+      float pos = (axes[i].ik_feedback - axes[i].ik_offset) / (float)axes[i].ik_midi_a * 128.f;
+      pos = max(0.f,min(127.f,pos));
+      int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
+      oscUdp.sendInt("/midi",midi_data);
+    }
 
   if(status.send_status) {
     status.send_status = 0;
