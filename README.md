@@ -25,6 +25,7 @@ Integrated motion control:
 Using platformio:
 
 `pio run -t upload`  # download dependencies, build and upload to ESP32 via USB
+`pio run -t uploadfs`  # upload Web App to flash
 
 ## connect hardware
 
