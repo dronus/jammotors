@@ -93,7 +93,9 @@ struct Status : public Params {
   P_int32_t (dt, false, 0, 0, 0);
   P_int32_t (dt_max, false, 0, 0, 0);
   P_int32_t (ik_error, false, 0, 0, 0);
-  P_uint8_t  (send_status,false,0,1,0);
+  P_uint8_t (send_status,false,0,1,0);
+  P_uint16_t(vbus,false,0,1,0);
+  P_uint16_t(voltage_divider, true, 0, 64000, 10000);
   P_end;
 } status;
 
@@ -424,6 +426,8 @@ void loop()
       int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
       oscUdp.sendInt("/midi",midi_data);
     }
+
+  status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
   if(status.send_status) {
     status.send_status = 0;
