@@ -28,8 +28,8 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td>Torque </td><td> <input id=torque_0 disabled> </td></tr>
   <tr><td>Temp   </td><td> <input id=temperature_0 disabled> </td></tr>
   <tr><td>Alarm  (reset by disable) </td><td> <input id=alarm_0 disabled></td></tr>
-  <tr><td>Enabled </td><td> <input id=enabled_0> </td></tr>
-  <tr><td>Enable on Power On </td><td> <input id=poweron_en_0> </td></tr>
+  <tr><td>Enabled </td><td> <input type=checkbox id=enabled_0> </td></tr>
+  <tr><td>Enable on Power On </td><td> <input type=checkbox id=poweron_en_0> </td></tr>
   <tr><td><h3>Motion sources</h3></td></tr>
   <tr><td>Offset </td><td> <input id=offset_0 > </td></tr>
   <tr><td><h4>Oscillate</h4></td></tr>
@@ -79,7 +79,9 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
 // otherwise, each update triggers a refresh of all config parameters.
 function set(el, no_update) {
   let param = el.id;
-  let value = el.tagName == 'BUTTON' ? 1 : el.value;
+  let value = el.value;
+  if(el.tagName == 'BUTTON') value = 1;
+  else if(el.type == 'checkbox') value = el.checked ? 1 : 0;
   
   if(websocket.readyState)
     websocket.send(`${param} ${value}`);
@@ -128,7 +130,7 @@ function show(id, value) {
   }
 
   // ensure input element is of right type
-  if(!isNaN(parseInt(value) && el.getAttribute('type') != 'number'))
+  if(!isNaN(parseInt(value)) && el.type =='text')
     el.setAttribute('type','number');
   // ensure element has change / click handler
   if(!el.disabled && !el.onchange && !el.onclick)
@@ -137,7 +139,11 @@ function show(id, value) {
     else
       el.setAttribute("onchange","set(this)");
 
-  if(el != document.activeElement && el.value != value)
+  if(el == document.activeElement) return;
+  
+  if(el.type == 'checkbox' && el.checked != parseInt(value)) 
+    el.checked = parseInt(value);
+  else if(el.value != value)
     el.value = value;
 }
 
