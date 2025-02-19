@@ -6,8 +6,8 @@ struct Axis : public  Params {
   P_float (ik_offset,true, -1000,  1000, 0);
   P_float (ik_feedback ,false,0,0, 0);
   P_float (ik_osc_a ,true, -1000,  1000, 0);
-  P_float (ik_osc_f ,true,     0, 10000, 1000);
-  P_float (ik_osc_fb,true,     0,  2000, 0);
+  P_float (ik_osc_f ,true,     0, 100, 1);
+  P_float (ik_osc_fb,true,     0,  2, 0);
   P_uint8_t (ik_dmx_ch,true,     0,   255, 10);
   P_float (ik_dmx_a ,true,-10000, 10000, 0);
   P_uint8_t (ik_midi_cc,true,     0,   127, 0);
@@ -47,12 +47,12 @@ struct Axis : public  Params {
     v_target = min( v_target,  vel_max * 1.f);
     v_target = max( v_target, -vel_max * 1.f);
 
-    float acc = ( v_target - vel ) / ( dt / 1000.f);
+    float acc = ( v_target - vel ) / dt;
     acc = min( acc,  acc_max);
     acc = max( acc, -acc_max);
 
-    vel += acc * dt / 1000.f;
-    ik_pos += vel * dt / 1000.f;
+    vel += acc * dt;
+    ik_pos += vel * dt;
 
     return ik_pos;
   }

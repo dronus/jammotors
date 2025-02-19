@@ -13,11 +13,11 @@ struct Channel : public Params {
   P_uint8_t (dmx_channel, true,0, 255, 0);
   P_float (scale, true,0, 10000,  0);
   P_float (offset, true,-100000, 100000,  0);
-  P_float (osc_f,true, 0, 10000,  1000);
-  P_float (osc_fb,true, 0, 10000,  0);
+  P_float (osc_f,true, 0, 100,  1);
+  P_float (osc_fb,true, 0, 2,  0);
   P_float (osc_a,true, 0, 100000, 0);
-  P_float (random_d, true,0, 100000, 1000);
-  P_float (random_rd,true,0, 100000, 1000);
+  P_float (random_d, true,0, 3600, 1);
+  P_float (random_rd,true,0, 3600, 1);
   P_float (random_a ,true,0, 200000, 0);
   P_float (ik_a ,true,-100000, 100000, 0);
   P_uint8_t (enabled   ,false,0,1,0);
@@ -36,7 +36,7 @@ struct Channel : public Params {
   float artnet_target=0;
   float ik_target;
   float osc_phase = 0;
-  int32_t random_countdown = 0;
+  float random_countdown = 0;
   float random_target = 0;
   uint8_t last_driver_id=0, last_pin_id=0;
   Driver* driver=NULL;

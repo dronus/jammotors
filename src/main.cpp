@@ -231,7 +231,7 @@ void motionLoop(void* dummy){
     uint32_t dt = time - last_time;
     if(last_time == 0) dt=1;
     last_time = time;
-    status.dt = dt;
+    status.dt = dt / 1000.f;
     status.dt_max = max(status.dt, status.dt_max);
 
     for(Axis& axis : axes)

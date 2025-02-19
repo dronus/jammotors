@@ -13,7 +13,7 @@ struct Kinematic : public Params {
   P_float (ik_acc_max,true,    0, 100000, 5000);
   P_end;
 
-  void update(uint32_t dt, Axis* axes, Channel* channels) {
+  void update(float dt, Axis* axes, Channel* channels) {
 
     float x     = axes[0].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
     float y     = axes[1].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
