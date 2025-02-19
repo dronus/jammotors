@@ -130,6 +130,9 @@ public:
 #define P_bool(name,persist,def) \
   Param name##_desc{P_UINT8_T, 1, #name, persist, 0, 1, def}; uint8_t name = def
 
+#define P_int8_t(name,persist,min,max,def) \
+  Param name##_desc{P_INT8_T, 1, #name, persist, min, max, def}; int8_t name = def
+
 #define P_uint8_t(name,persist,min,max,def) \
   Param name##_desc{P_UINT8_T, 1, #name, persist, min, max, def}; uint8_t name = def
 

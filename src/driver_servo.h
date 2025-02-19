@@ -21,7 +21,7 @@ struct DriverServo : public Driver {
       servo.attach(pin, 500, 2400);
 
     if(c.enabled) {
-      servo.write(1000 + max(0,c.target));
+      servo.write(1000 + max(0,(int)c.target));
       c.position = c.target; // no real feedback possible
     }
   };

@@ -90,12 +90,12 @@ char* global_string_params[] = {
 };
 
 struct Status : public Params {
-  P_int32_t (dt, false, 0, 0, 0);
-  P_int32_t (dt_max, false, 0, 0, 0);
-  P_int32_t (ik_error, false, 0, 0, 0);
+  P_float (dt, false, 0, 0, 0);
+  P_float (dt_max, false, 0, 0, 0);
+  P_float (ik_error, false, 0, 0, 0);
   P_uint8_t (send_status,false,0,1,0);
-  P_uint16_t(vbus,false,0,1,0);
-  P_uint16_t(voltage_divider, true, 0, 64000, 10000);
+  P_float(vbus,false,0,1,0);
+  P_float(voltage_divider, true, 0, 64000, 10000);
   P_end;
 } status;
 
@@ -127,7 +127,7 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 
     Serial.print(prefs_name);Serial.print(" ");
     if(prefs.isKey(prefs_name)) {
-      int val = prefs.getInt(prefs_name); 
+      int val = prefs.getFloat(prefs_name); 
       Serial.print(val);
       p->set(val);
     } else {
@@ -150,10 +150,10 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     if ( strcmp(prefs_name, key) == 0 ) {
-      int32_t value = atoi(value_str);
+      float value = atof(value_str);
       p->set(value);
       if(p->desc->persist)
-        prefs.putInt(prefs_name, value);
+        prefs.putFloat(prefs_name, value);
     }
   }
 }
@@ -193,9 +193,9 @@ void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t ind
   for(Param* p = params.getParams(); p; p = p->next())
     if(p->desc->persist == persistent)
       if(index == -1)
-        ptr += (size_t)sprintf(ptr,"%s %d\n",p->desc->name, (int32_t)(p->get()));
+        ptr += (size_t)sprintf(ptr,"%s %.5g\n",p->desc->name, p->get());
       else
-        ptr += (size_t)sprintf(ptr,"%s_%d %d\n",p->desc->name, index, (int32_t)(p->get()));
+        ptr += (size_t)sprintf(ptr,"%s_%d %.5g\n",p->desc->name, index, p->get());
 }
 
 template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[], uint8_t len,  bool persistent) {

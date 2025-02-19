@@ -3,15 +3,15 @@
 
 struct MidiPicker : public Params{
 
-  P_int32_t (midi_base_note,true,0,96,48);
-  P_int32_t (midi_move_dur,true,0,10000,1000);
-  P_int32_t (midi_pick_dur,true,0,1000 , 200);
+  P_int8_t(midi_base_note,true,0,96,48);
+  P_float (midi_move_dur,true,0,10000,1000);
+  P_float (midi_pick_dur,true,0,1000 , 200);
   P_end;
   
-  uint8_t  note;
-  uint32_t t;
+  int8_t  note;
+  float t;
 
-  void update(Axis (&axes)[4], uint32_t dt) {
+  void update(Axis (&axes)[4], float dt) {
   
     if(note == 0) return; // nothing to play
 
