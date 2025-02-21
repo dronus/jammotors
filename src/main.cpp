@@ -160,12 +160,12 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
 
 // set single parameter from incoming key, value message.
 void setFromWs(char* key_value)  {
-  Serial.printf("Set %s\n",key_value);
+  // Serial.printf("Set %s\n",key_value);
   char* key       = key_value;
   char* value_str = strchr(key_value,' ');
   if(!value_str) return; // no value
   *(value_str++) = 0; // mark end of key and advance
-  Serial.printf("Set %s %s\n",key,value_str);
+  // Serial.printf("Set %s %s\n",key,value_str);
 
   // handle persistent per-channel parameters
   for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
@@ -418,6 +418,7 @@ void loop()
     dnsServer.processNextRequest();
   artnetnode.read();
   oscUdp.onOscMessageReceived( oscMessageParser );
+  ws.cleanupClients();
 
   for(uint8_t i=0; i<max_axes; i++)
     if(axes[i].ik_midi_cc) {
