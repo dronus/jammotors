@@ -14,7 +14,7 @@ struct Axis : public  Params {
   P_float (ik_midi_a ,true,-10000, 10000, 0);
   P_float   (ik_midi_target ,false,0, 0, 0);
   P_float (ik_hid_a  ,true,-10000, 10000, 0);
-  P_int8_t (ik_hid_ch ,true,-1, 15, -1);
+  P_int32_t (ik_hid_ch ,true,-1, 15, -1);
   P_float (midi_move_a ,true,-1000, 1000, 0);
   P_float (midi_pick_a ,true,-1000, 1000, 0);
   P_float (ik_pos ,false,0, 0, 0);
