@@ -379,15 +379,8 @@ void setup()
  
   vTaskPrioritySet(NULL, 2);
  
-  // start motion task
-  
-  xTaskCreatePinnedToCore(
-                    motionLoop,
-                    "MotionLoop",          /* Text name for the task. */
-                    4096,      /* Stack size in words, not bytes. */
-                    NULL,    /* Parameter passed into the task. */
-                    6,/* Priority at which the task is created. */
-                    NULL ,1); 
+  // start motion task with priority 11 - the web server defaults to 10, so we are higher. 
+  xTaskCreatePinnedToCore(motionLoop,"MotionLoop",4096,NULL,11,NULL ,1); 
  
   // light status led
   digitalWrite(statusLedPin,HIGH);
