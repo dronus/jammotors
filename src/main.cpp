@@ -96,6 +96,7 @@ struct Status : public Params {
   P_uint8_t (send_status,false,0,1,0);
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
+  P_uint32_t (uptime, false, 0, 0, 0);
   P_end;
 } status;
 
@@ -228,6 +229,7 @@ void motionLoop(void* dummy){
     vTaskDelayUntil( &xLastWakeTime, cycle_time );
     // compute delta time
     uint32_t time = millis();
+    status.uptime = time / 1000;
     uint32_t dt = time - last_time;
     if(last_time == 0) dt=1;
     last_time = time;

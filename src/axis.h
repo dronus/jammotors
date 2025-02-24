@@ -22,7 +22,7 @@ struct Axis : public  Params {
 
   float vel=0, ik_input=0;
   float ik_phase=0;
-  float ik_dmx_target;
+  float ik_dmx_target=0;
   
   float compute_max_vel(float dx_target, float v0, float a_max, float vel_k) {
 
@@ -41,6 +41,8 @@ struct Axis : public  Params {
   float update(float dt, float vel_max, float acc_max, float vel_k) {
     ik_input += motion_fm_osc(ik_manual + ik_offset + ik_dmx_target + ik_midi_target, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
     ik_target = ik_input;
+
+    if(dt == 0 || isnan(ik_input)) return ik_pos;
 
     float dx = ik_input - ik_pos;
     float v_target = compute_max_vel(dx, vel, acc_max, vel_k);
