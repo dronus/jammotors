@@ -83,12 +83,6 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   return NULL;
 }
 
-char* global_string_params[] = {
-  "name",
-  "ssid",
-  "psk"
-};
-
 struct Status : public Params {
   P_float (dt, false, 0, 0, 0);
   P_float (dt_max, false, 0, 0, 0);
@@ -97,9 +91,12 @@ struct Status : public Params {
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
+  P_string (name, true, "Motor");
+  P_string (ssid, true, " "); // crashes with empty default string "" - why ?
+  P_string (psk,  true, " "); // crashes with empty default string "" - why ?
   P_end;
 } status;
-
+  
 const uint8_t max_axes = 4;
 Axis axes[max_axes];
 
@@ -109,8 +106,8 @@ Axis axes[max_axes];
 void switchWifiAp() {
   Serial.println("Switching WiFi to AP mode.");
   WiFi.disconnect();
-  WiFi.softAP(prefs.getString("name","Motor").c_str());
-  Serial.printf("AP created: %s, %s \n",prefs.getString("name","Motor").c_str(),WiFi.softAPIP().toString().c_str());
+  WiFi.softAP(status.name.c_str());
+  Serial.printf("AP created: %s, %s \n",status.name.c_str(),WiFi.softAPIP().toString().c_str());
   Serial.println("Starting DNS (Captive Portal)");
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.setTTL(300);
@@ -128,12 +125,15 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 
     Serial.print(prefs_name);Serial.print(" ");
     if(prefs.isKey(prefs_name)) {
-      int val = prefs.getFloat(prefs_name); 
-      Serial.print(val);
-      p->set(val);
-    } else {
-      Serial.print(" use default ");
-      Serial.print(p->get());
+      if(p->desc->type == P_STRING) {
+        String val = prefs.getString(prefs_name,"DEADBEEF");
+        Serial.print(val);
+        p->set(std::string(val.c_str()));
+      } else {
+        float val = prefs.getFloat(prefs_name);
+        Serial.print(val);
+        p->set(val);
+      }
     }
     Serial.println();
   }
@@ -151,10 +151,16 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     if ( strcmp(prefs_name, key) == 0 ) {
-      float value = atof(value_str);
-      p->set(value);
-      if(p->desc->persist)
-        prefs.putFloat(prefs_name, value);
+      if(p->desc->type == P_STRING) {
+        p->set(value_str);
+        if(p->desc->persist)
+          prefs.putString(prefs_name, value_str);
+      } else {
+        float value = atof(value_str);
+        p->set(value);
+        if(p->desc->persist)
+          prefs.putFloat(prefs_name, value);
+      }
     }
   }
 }
@@ -175,10 +181,6 @@ void setFromWs(char* key_value)  {
   // check for global parameters
   setParam(&status, -1,  key, value_str);
   setParam(&kinematic, -1,  key, value_str);
-  // check for global string parameters
-  for(char* param : global_string_params)
-    if (strcmp(key, param) == 0 )
-      prefs.putString(param, value_str);
   setParam(&midi_picker, -1,  key, value_str);
 
   // check for axes parameters
@@ -193,7 +195,9 @@ void setFromWs(char* key_value)  {
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
   for(Param* p = params.getParams(); p; p = p->next())
     if(p->desc->persist == persistent)
-      if(index == -1)
+      if(index == -1 && p->desc->type == P_STRING)
+        ptr += (size_t)sprintf(ptr,"%s %s\n",p->desc->name, p->getString().c_str());
+      else if(index == -1)
         ptr += (size_t)sprintf(ptr,"%s %.5g\n",p->desc->name, p->get());
       else
         ptr += (size_t)sprintf(ptr,"%s_%d %.5g\n",p->desc->name, index, p->get());
@@ -270,7 +274,8 @@ void setup()
 
   prefs.begin("motor");
   Serial.println("Prefs started.");
-
+  
+  readPrefs(&status);
   readPrefs(&kinematic);
   readPrefs(&midi_picker);
 
@@ -287,12 +292,12 @@ void setup()
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
-  WiFi.setHostname(prefs.getString("name","Motor").c_str());
+  WiFi.setHostname(status.name.c_str());
 
-  if(prefs.getString("psk","")=="")
-    WiFi.begin(prefs.getString("ssid"));
+  if(status.psk=="")
+    WiFi.begin(status.ssid.c_str());
   else
-    WiFi.begin(prefs.getString("ssid"), prefs.getString("psk"));
+    WiFi.begin(status.ssid.c_str(), status.psk.c_str());
   
   // wait for connection to establish
   int cycle = 1;
@@ -331,9 +336,6 @@ void setup()
     char buffer[len];
     writeAllParamsToBuffer(buffer, true);
     response->print(buffer);
-    // send global string configuration
-    for(char* param : global_string_params)
-      response->printf("%s %s\n",param, prefs.getString(param,"").c_str());
     request->send(response);
   });
 
