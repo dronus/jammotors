@@ -151,16 +151,12 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     if ( strcmp(prefs_name, key) == 0 ) {
-      if(p->desc->type == P_STRING) {
-        p->set(value_str);
-        if(p->desc->persist)
+      p->set(value_str);
+      if(p->desc->persist)
+        if(p->desc->type == P_STRING) 
           prefs.putString(prefs_name, value_str);
-      } else {
-        float value = atof(value_str);
-        p->set(value);
-        if(p->desc->persist)
-          prefs.putFloat(prefs_name, value);
-      }
+        else
+          prefs.putFloat(prefs_name, p->get());
     }
   }
 }
