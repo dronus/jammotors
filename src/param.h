@@ -57,11 +57,12 @@
 #pragma once
 
 #include <math.h>
+#include <string>
 
 enum ParamType {
-  P_END=0, P_UINT8_T, P_INT8_T, P_UINT16_T, P_UINT32_T, P_INT32_T, P_FLOAT, P_TYPE_COUNT
+  P_END=0, P_UINT8_T, P_INT8_T, P_UINT16_T, P_UINT32_T, P_INT32_T, P_FLOAT, P_STRING, P_TYPE_COUNT 
 };
-const uint8_t param_sizes[P_TYPE_COUNT]={0,sizeof(uint8_t),sizeof(int8_t),sizeof(uint16_t),sizeof(uint32_t),sizeof(int32_t),sizeof(float)};
+const uint8_t param_sizes[P_TYPE_COUNT]={0,sizeof(uint8_t),sizeof(int8_t),sizeof(uint16_t),sizeof(uint32_t),sizeof(int32_t),sizeof(float),sizeof(std::string)};
 
 class 
 Descriptor {
@@ -71,10 +72,11 @@ public:
   const uint32_t count;
   const char* name;
   bool persist;
-  const float def,min,max;
+  float def,min,max;
+  std::string* defString;
 
   Descriptor(ParamType _type=P_UINT8_T, uint32_t _count=1, const char* _name="", bool _persist=false, float _min=0, float _max=99, float _default=50) : type(_type), count(_count), name(_name), persist(_persist), def(_default), min(_min), max(_max) {};
-
+  Descriptor(const char* _name, bool _persist, std::string _default) : type(P_STRING), count(1), name(_name), persist(_persist), defString(new std::string(_default)) {};
 };
 
 class Param {
@@ -88,6 +90,13 @@ public:
     for(uint32_t i=0; i<_count; i++)
       set(_default,i);
   };
+
+  Param(const char* _name, bool _persist, std::string _default) : desc(
+    new Descriptor(_name, _persist, _default )
+  ) {
+    set(_default);
+  };
+
 
   Param* next() {
     // skip the Param struct and size of data described by it
@@ -110,6 +119,13 @@ public:
     return 0;
   };
 
+  std::string getString(uint32_t i=0) {
+    uintptr_t ptr = ((uintptr_t)this) + sizeof(Param) + i * param_sizes[desc->type];
+    if(desc->type == P_STRING) return *((std::string*)ptr);
+    else return std::string("");    
+  };
+
+
   void set(float value, uint32_t i=0) {
     uintptr_t ptr = ((uintptr_t)this) + sizeof(Param) + i * param_sizes[desc->type];
     if(value < desc->min) value = desc->min;
@@ -120,6 +136,23 @@ public:
     if(desc->type == P_INT32_T) *((int32_t*)ptr) = round(value);
     if(desc->type == P_FLOAT) *((float*)ptr) = value;
   };
+  void set(std::string value, uint32_t i=0) {
+    uintptr_t ptr = ((uintptr_t)this) + sizeof(Param) + i * param_sizes[desc->type];
+ 
+    if(desc->type == P_STRING) *((std::string*)ptr) = value;
+    else {
+      float fval = atof(value.c_str());
+      if(fval < desc->min) fval = desc->min;
+      if(fval > desc->max) fval = desc->max;
+      if(desc->type == P_UINT8_T) *((uint8_t*)ptr) = round(fval);
+      if(desc->type == P_UINT16_T) *((uint16_t*)ptr) = round(fval);
+      if(desc->type == P_UINT32_T) *((uint32_t*)ptr) = round(fval);
+      if(desc->type == P_INT32_T) *((int32_t*)ptr) = round(fval);
+      if(desc->type == P_FLOAT) *((float*)ptr) = fval;
+    }
+  };
+  
+  
   void check() {
     float val = get();
     if(val < desc->min) set(desc->min);
@@ -147,6 +180,9 @@ public:
 
 #define P_float(name,persist,min,max,def) \
   Param name##_desc{P_FLOAT, 1, #name,persist,min,max,def}; float name = def
+
+#define P_string(name,persist,def) \
+  Param name##_desc{#name,persist,def}; std::string name = def
 
 #define P_end Param _p_end_desc{P_END};
 
