@@ -57,10 +57,11 @@ struct DriverCybergear : public Driver{
       cybergear.set_mech_position_to_zero();
       c.reset_zero = false;
     }
-    torque = c.enabled ? torque + max(min(c.accel/1000.f-torque, 0.01f),-0.01f) : 0.f;
+    float torque_attenuation =max(0.f,min( 1.f, (79.f-c.temperature/10.f) / 10.f ));    
+    torque = c.enabled ? torque + max(min((c.accel/1000.f * torque_attenuation)-torque, 0.01f),-0.01f) : 0.f;
     if(torque != last_torque_limit) {
       cybergear.set_limit_torque(torque);
-      last_torque_limit = c.accel;
+      last_torque_limit = torque;
     }
 
     // execute move
