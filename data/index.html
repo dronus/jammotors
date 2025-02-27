@@ -69,6 +69,8 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td>Name </td><td>  <input id=name> </td></tr>
   <tr><td>WiFi SSID </td><td> <input id=ssid> </td></tr>
   <tr><td>WiFi PSK </td><td>  <input type=password id=psk > </td></tr>
+  <tr><td>OSC Output IP</td><td>  <input type=text id=osc_out_ip > </td></tr>
+  <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td><button id=reset>connect</button> </td></tr>
   <tr><td><h3>Kinematics</h3> </td></tr>
 </table>
@@ -124,6 +126,9 @@ function show(id, value) {
       el = document.createElement('input');
       el.setAttribute('onchange','set(this)');
       el.setAttribute('size','6');
+      // ensure input element is of right type
+      if(!isNaN(parseInt(value)) && el.type =='text')
+        el.setAttribute('type','number');
     } 
     el.setAttribute('id',id);
 
@@ -132,9 +137,6 @@ function show(id, value) {
     tr_el.append(input_td_el);
   }
 
-  // ensure input element is of right type
-  if(!isNaN(parseInt(value)) && el.type =='text')
-    el.setAttribute('type','number');
   // ensure element has change / click handler
   if(!el.disabled && !el.onchange && !el.onclick)
     if(el.tagName == 'BUTTON')

@@ -65,7 +65,7 @@ DNSServer dnsServer;
 #include <WiFiUdp.h>
 WiFiUDP udp;
 unsigned int oscInPort = 8888;
-MicroOscUdp<1024> oscUdp(&udp, IPAddress(192,168,0,126), 8888);
+MicroOscUdp<1024> oscUdp(&udp);
 MidiPicker midi_picker;
 Kinematic kinematic;
 
@@ -94,6 +94,8 @@ struct Status : public Params {
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
+  P_string   (osc_out_ip  ,  true, "0.0.0.0"); // crashes with empty default string "" - why ?
+  P_uint32_t (osc_out_port,  true, 0, 0xFFFF, 8888);
   P_end;
 } status;
   
@@ -374,6 +376,11 @@ void setup()
   // start OSC Udp receiver
   udp.begin(oscInPort);
   Serial.println("OSC receiver started.");
+  
+  IPAddress osc_out_ip;
+  osc_out_ip.fromString(status.osc_out_ip.c_str());
+  oscUdp.setDestination(osc_out_ip, status.osc_out_port);
+  Serial.println("OSC sender started.");
  
   vTaskPrioritySet(NULL, 2);
  
