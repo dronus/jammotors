@@ -15,9 +15,8 @@ DriverCybergear* can_handlers[max_channels];
 struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
   uint8_t can_id;
-  uint32_t last_torque_limit;
-  float torque;
-
+  float torque = 0.f, last_torque_limit = 0.f;
+  
   DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
     for(uint8_t i=0; i<max_channels; i++)
       if(!can_handlers[i]) {
@@ -32,19 +31,13 @@ struct DriverCybergear : public Driver{
     cybergear.init_twai(RX_PIN, TX_PIN, /*serial_debug=*/true);
     cybergear.init_motor(MODE_MOTION);
     cybergear.set_position_ref(0.0);
+    cybergear.set_limit_torque(torque);
+    cybergear.stop_motor();
     Serial.println("Cybergear started.");
   };
 
   void update(Channel& c, uint32_t dt) {
-    // update enable state
-    if(!c.enabled && c.last_enabled)
-      cybergear.stop_motor();
-    if(c.enabled && !c.last_enabled) {
-      cybergear.init_motor(MODE_MOTION);
-      cybergear.set_limit_torque(torque);
-      cybergear.enable_motor();
-    }
-
+    
     // write new can_id if requested to
     if(c.set_can_id > 0) {
       Serial.printf("Set new CAN ID %d for motor on CAN ID %d\n", c.set_can_id, can_id);
@@ -57,15 +50,27 @@ struct DriverCybergear : public Driver{
       cybergear.set_mech_position_to_zero();
       c.reset_zero = false;
     }
-    float torque_attenuation =max(0.f,min( 1.f, (79.f-c.temperature/10.f) / 10.f ));    
-    torque = c.enabled ? torque + max(min((c.accel/1000.f * torque_attenuation)-torque, 0.01f),-0.01f) : 0.f;
+    float target_torque = c.enabled ? c.accel/1000.f : 0.f;
+    target_torque *= max(0.f,min( 1.f, (79.f-c.temperature/10.f) / 10.f ));  // attenuate by temperature stress
+    
+    torque = max(0.f, torque + max(min(target_torque - torque, 0.01f),-0.01f));
     if(torque != last_torque_limit) {
-      cybergear.set_limit_torque(torque);
+      // update enable state based on torque limit instead of c.enable
+      // so we keep motor running while downramping torque on disenable.
+      if(torque <= 0.f && last_torque_limit >  0.f )
+        cybergear.stop_motor();    
+      else if(torque >  0.f && last_torque_limit <= 0.f ) {
+        cybergear.init_motor(MODE_MOTION);
+        cybergear.enable_motor();
+      }
+      if(torque > 0.f)
+        cybergear.set_limit_torque(torque);
+
       last_torque_limit = torque;
     }
 
     // execute move
-    if(c.enabled)
+    if(torque > 0.f)
       cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
 
     // check motor state (handle messages for all CyberGear motors)
