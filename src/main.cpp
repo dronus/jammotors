@@ -302,7 +302,7 @@ void setup()
   while ( WiFi.status() != WL_CONNECTED )
   {
       Serial.print(".");
-      delay(500);
+      delay( 500 + random(500) );
       if (cycle >= 10) {
         // no succes after 5 seconds, back up and provide own access point.
         Serial.println();
