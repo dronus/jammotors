@@ -14,12 +14,14 @@ struct Kinematic : public Params {
   P_end;
 
   void update(float dt, Axis* axes, Channel* channels) {
-
-    float x     = axes[0].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
-    float y     = axes[1].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
-    float z     = axes[2].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
-    float delta = axes[3].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
-    channels[3].ik_target = delta / (float)pi;
+  
+    for(uint8_t i=0; i<7; i++)
+      axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
+    channels[3].ik_target = channels[3].pos_a * axes[3].ik_pos;
+    
+    float x     = axes[4].ik_pos;
+    float y     = axes[5].ik_pos;
+    float z     = axes[6].ik_pos;
 
     // define shoulder - target angle
     if(y == 0 && x == 0) return; // if y and z are zero, just keep last angles.
@@ -30,7 +32,7 @@ struct Kinematic : public Params {
     if(rot < ros) return; // target to close
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
     float alpha = atan2f(x,y) - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
-    channels[0].ik_target = alpha  / (float)pi;
+    channels[0].ik_target = channels[0].ik_a * alpha  / (float)pi + channels[0].pos_a * axes[0].ik_pos;
 
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
@@ -44,8 +46,8 @@ struct Kinematic : public Params {
     // get shoulder angle by triangle cosine equation and atan offset
     if(z==0 && rst==0) return; // point undefined.
     float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
-    channels[1].ik_target = beta  / (float)pi;
-    channels[2].ik_target = gamma / (float)pi;
+    channels[1].ik_target = channels[1].ik_a * beta  / (float)pi  + channels[1].pos_a * axes[1].ik_pos;
+    channels[2].ik_target = channels[2].ik_a * gamma / (float)pi  + channels[2].pos_a * axes[2].ik_pos;
   }
 
   void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
@@ -56,11 +58,14 @@ struct Kinematic : public Params {
   }
 
   float update_feedback(Channel* channels, Axis* axes) {
+
+    for(uint8_t i=0; i<3; i++) 
+      axes[i].ik_feedback = channels[i].position / (float)channels[0].ik_a;
+
     float alpha = channels[0].position / (float)channels[0].ik_a * (float)pi;
     float beta  = channels[1].position / (float)channels[1].ik_a * (float)pi;
     float gamma = channels[2].position / (float)channels[2].ik_a * (float)pi;
-    float delta = channels[3].position / (float)channels[3].ik_a * (float)pi;
-
+    
     float x=0, y=0, z=0;
     z += ik_length_b;
     rot(y,z,gamma,y,z);
@@ -69,15 +74,14 @@ struct Kinematic : public Params {
     x += ik_length_c;
     rot(y,x,alpha,y,x);
 
-    axes[0].ik_feedback = x;
-    axes[1].ik_feedback = y;
-    axes[2].ik_feedback = z;
-    axes[3].ik_feedback = delta;
-
-    float dx = axes[0].ik_pos - x;
-    float dy = axes[1].ik_pos - y;
-    float dz = axes[2].ik_pos - z;
-
+    axes[4].ik_feedback = x;
+    axes[5].ik_feedback = y;
+    axes[6].ik_feedback = z;
+    
+    // compute ik_error from x,y,z only.
+    float dx = axes[4].ik_pos - x;
+    float dy = axes[5].ik_pos - y;
+    float dz = axes[6].ik_pos - z;
     return sqrtf( dx*dx + dy*dy + dz*dz );
   }
 };

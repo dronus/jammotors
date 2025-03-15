@@ -2,14 +2,15 @@
 
 <style>
 * { font-family: sans; }
-div, table {  display: table; margin: 5px; padding: 5px; border-radius: 5px; background-color: rgba(0,0,0,0.2); }
+div, table {  display: table; margin: 3px; padding: 5px; border-radius: 5px; background-color: rgba(0,0,0,0.2); }
 table { display: inline-block; vertical-align: top }
 input, button {margin: 1px}
 h2 input { width: 1em;}
+input { max-width: 8em;}
 input[type="number"] { width: 5em; text-align: right;}
 h2 {text-align: center;}
 h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
-td:not(:first-child) { max-width: 5.5em; overflow: visible; }
+/*td:not(:first-child) { max-width: 5.5em; overflow: visible; } */
 </style>
 
 <table id=channels>
@@ -29,22 +30,9 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td>Temp   </td><td> <input type=number id=temperature_0 disabled> </td></tr>
   <tr><td>Alarm  (reset by disable) </td><td> <input type=number id=alarm_0 disabled></td></tr>
   <tr><td>Enabled </td><td> <input type=checkbox id=enabled_0> </td></tr>
-  <tr><td>Enable on Power On </td><td> <input type=checkbox id=poweron_en_0> </td></tr>
-  <tr><td><h3>Motion sources</h3></td></tr>
-  <tr><td>Offset </td><td> <input type=number id=offset_0 > </td></tr>
-  <tr><td><h4>Oscillate</h4></td></tr>
-  <tr><td>Frequency (Hz) </td><td>  <input type=number id=osc_f_0 > </td></tr>
-  <tr><td>Amplitude </td><td>  <input type=number id=osc_a_0> </td></tr>
-  <tr><td>FM Feedback</td><td>      <input type=number id=osc_fb_0> </td></tr>
-  <tr><td><h4>Random</h4></td></tr>
-  <tr><td>Static delay (s) </td><td>  <input type=number id=random_d_0 > </td></tr>
-  <tr><td>Random delay (s)</td><td>  <input type=number id=random_rd_0> </td></tr>
-  <tr><td>Amplitude </td><td>     <input type=number id=random_a_0 > </td></tr>
-  <tr><td><h4>ArtNet DMX Input</h4></td></tr>
-  <tr><td>DMX Channel </td><td> <input type=number id=dmx_channel_0> </td></tr>
-  <tr><td>DMX Scale </td><td>     <input type=number id=scale_0 > </td></tr>
-  <tr><td><h4>Inverse Kinematic</h4></td></tr>
-  <tr><td>Scale ( per full turn ) </td><td>  <input type=number id=ik_a_0> </td></tr>
+  <tr><td>Enable on Power On </td><td> <input type=checkbox id=poweron_en_0> </td></tr>  
+  <tr><td>Axis Input Scale </td><td>  <input type=number id=pos_a_0> </td></tr>
+  <tr><td>IK Scale ( per full turn ) </td><td>  <input type=number id=ik_a_0> </td></tr>
   <tr><td><h3>Motion Limits</h3></td></tr>
   <tr><td>Speed </td><td>     <input type=number id=speed_0 > </td></tr>
   <tr><td>Accel / Torque </td><td>     <input type=number id=accel_0 > </td></tr>
@@ -55,7 +43,7 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td>Write new CAN ID </td><td> <input type=number type=number id=set_can_id_0> </td></tr>
 </table>
 
-<table id=global_config>
+<table>
   <tr><td colspan=2><h2>Global</h2></td></tr>
   <tr><td colspan=2><h3>Status</h3></td></tr>
   <tr><td>Uptime (s)</td><td><input id="uptime"  type="number" disabled></td></tr>
@@ -72,11 +60,38 @@ td:not(:first-child) { max-width: 5.5em; overflow: visible; }
   <tr><td>OSC Output IP</td><td>  <input type=text id=osc_out_ip > </td></tr>
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td><button id=reset>connect</button> </td></tr>
-  <tr><td><h3>Kinematics</h3> </td></tr>
+  
+  <tr><td>IK Offset (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
+  <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
+  <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
+  <tr><td>Max. velocity</td><td>     <input type=number id=ik_vel_max > </td></tr>
+  <tr><td>Velocity control K</td><td>     <input type=number id=ik_vel_k > </td></tr>
+  <tr><td>Max. acceleration</td><td>     <input type=number id=ik_acc_max > </td></tr>
+  <tr><td>MIDI base note</td><td>     <input type=number id=midi_base_note > </td></tr>  
+  <tr><td>MIDI move (s)</td><td>     <input type=number id=midi_move_dur > </td></tr>
+  <tr><td>MIDI pick (s)</td><td>     <input type=number id=midi_pick_dur > </td></tr>
 </table>
 
-<canvas id=stats width="256" height="800">
+<table id=global_config>
+  <tr><td><h3>Inputs</h3></td></tr>
+  <tr><td>Axis</td><td>0</td><td>1</td><td>2</td><td>3</td><td>X</td><td>Y</td><td>Z</td></tr>
+  <tr><td>Offset </td><td> <input type=number id=ik_offset_0 > </td></tr>
+  <tr><td><h4>Oscillate</h4></td></tr>
+  <tr><td>Frequency (Hz) </td><td>  <input type=number id=ik_osc_f_0 > </td></tr>
+  <tr><td>Amplitude </td><td>  <input type=number id=ik_osc_a_0> </td></tr>
+  <tr><td>FM Feedback</td><td>      <input type=number id=ik_osc_fb_0> </td></tr>
+  <tr><td><h4>Random</h4></td></tr>
+  <tr><td>Static delay (s) </td><td>  <input type=number id=ik_random_d_0 > </td></tr>
+  <tr><td>Random delay (s)</td><td>  <input type=number id=ik_random_rd_0> </td></tr>
+  <tr><td>Amplitude </td><td>     <input type=number id=ik_random_a_0 > </td></tr>
+  <tr><td><h4>ArtNet DMX Input</h4></td></tr>
+  <tr><td>DMX Channel </td><td> <input type=number id=ik_dmx_ch_0> </td></tr>
+  <tr><td>DMX Scale </td><td>     <input type=number id=ik_dmx_a_0 > </td></tr>
+  <tr><td><h4>MIDI / HID Input</h4></td></tr>
+</table>
 
+<canvas id=stats width="256" height="800"> </canvas>
+<textarea id=command onchange="set_all(this)" placeholder="Commands here"></textarea>
 <script>
 
 // set the a parameter by an input element.
@@ -150,6 +165,9 @@ function show(id, value) {
     el.checked = parseInt(value);
   else if(el.value != value)
     el.value = value;
+
+  if(id=="name")
+    document.title = value;
 }
 
 function show_all(data) {
@@ -165,13 +183,17 @@ function show_all(data) {
   ctx.drawImage(canvas,-1,0);
 
   let plots = ["ik_target","ik_feedback"];
-  let i=0;
   ctx.fillStyle="#ffffff";
   ctx.fillRect(canvas.width-2,0,2,canvas.height);
   ctx.fillStyle="#000000";
-  for(let param of params)
-    if(param.length>=2 && plots.includes(param[0].replace(/_[0-9]+$/,'')))
-      ctx.fillRect(canvas.width-2,canvas.height * (parseInt(param[1])/1000. + i++ ) / (plots.length*3), 2,2);
+  for(let i=4; i<7; i++) {
+    let param1 = params.find(param => param[0] == plots[0]+'_'+i);
+    let param2 = params.find(param => param[0] == plots[1]+'_'+i);
+    let y  = parseFloat(param1[1])/1000.; 
+    let dy = parseFloat(param2[1])/1000. - y ;
+    if(dy<0) y+=dy;
+    ctx.fillRect(canvas.width-2,canvas.height * ( y + (i-4) + 0.5) / 4, 2,1+Math.abs(canvas.height * dy / 4));
+  }
 }
 
 async function fetch_and_show(url) {
@@ -186,7 +208,7 @@ function updateGamepad() {
   let gamepad = gamepads[0];
 
   if(gamepad) {
-    for(let i=0; i<4; i++) {
+    for(let i=0; i<7; i++) {
       let channel_el = document.getElementById("ik_hid_ch_"+i);
       if(!channel_el) continue;
 

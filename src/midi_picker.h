@@ -11,7 +11,7 @@ struct MidiPicker : public Params{
   int8_t  note;
   float t;
 
-  void update(Axis (&axes)[4], float dt) {
+  void update(Axis (&axes)[7], float dt) {
   
     if(note == 0) return; // nothing to play
 

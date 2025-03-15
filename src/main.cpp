@@ -99,7 +99,7 @@ struct Status : public Params {
   P_end;
 } status;
   
-const uint8_t max_axes = 4;
+const uint8_t max_axes = 7;
 Axis axes[max_axes];
 
 // switch WiFi to acces point mode and provide an captive portal page.
@@ -359,16 +359,9 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
-    for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
-      Channel& c = channels[channel_id];
-      if(c.dmx_channel > 0 && c.dmx_channel-1 < length)
-        c.artnet_target = c.scale * ((uint32_t)data[c.dmx_channel-1]);
-    }
-    
     for(uint8_t i=0; i<max_axes; i++)
       if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
         axes[i].ik_dmx_target = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
-
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
