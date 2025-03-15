@@ -408,6 +408,11 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     }
     Serial.println();
   }
+  if ( receivedOscMessage.checkOscAddress("/xyza") ) {
+    uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+    for(uint8_t i=0; i<4; i++)
+      axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
+  }
 }
 
 void loop() 
@@ -427,6 +432,15 @@ void loop()
       int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
       oscUdp.sendInt("/midi",midi_data);
     }
+  // send current IK position as native OSC message
+  if(status.osc_out_port) {
+    uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+    float osc_pos[4];
+    for(uint8_t i=0; i<4; i++)
+      osc_pos[i] = axes[axe_idxs[i]].ik_feedback - axes[axe_idxs[i]].ik_offset;
+    if(status.osc_out_port)
+      oscUdp.sendMessage("/xyza","ffff",osc_pos[0],osc_pos[1],osc_pos[2],osc_pos[3]);
+  }
 
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
