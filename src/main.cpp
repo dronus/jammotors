@@ -367,7 +367,7 @@ void setup()
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
     for(uint8_t i=0; i<max_axes; i++)
       if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
-        axes[i].ik_dmx_target = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
+        axes[i].ik_ext_in = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
@@ -404,7 +404,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     if(type == 0xB0) {// CC change
       for(uint8_t i=0; i<max_axes; i++)
         if(axes[i].ik_midi_cc == midi[1])
-          axes[i].ik_midi_target = axes[i].ik_midi_a / 128.f * midi[2];
+          axes[i].ik_ext_in = axes[i].ik_midi_a / 128.f * midi[2];
     }
     Serial.println();
   }
@@ -419,6 +419,7 @@ void loop()
   oscUdp.onOscMessageReceived( oscMessageParser );
   ws.cleanupClients();
 
+  // send current position of all axes as OSC MIDI message, if configured
   for(uint8_t i=0; i<max_axes; i++)
     if(axes[i].ik_midi_cc) {
       float pos = (axes[i].ik_feedback - axes[i].ik_offset) / (float)axes[i].ik_midi_a * 128.f;
