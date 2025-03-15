@@ -30,6 +30,7 @@
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include <DNSServer.h>
+#include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
 #include <MicroOscUdp.h>
@@ -290,8 +291,7 @@ void setup()
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
-  WiFi.setHostname(status.name.c_str());
-
+  
   if(status.psk=="")
     WiFi.begin(status.ssid.c_str());
   else
@@ -311,6 +311,7 @@ void setup()
       }
       cycle++;
   }
+  WiFi.setHostname(status.name.c_str());
   Serial.println();
   Serial.print("connected, IP address: ");
   Serial.println(WiFi.localIP().toString().c_str());
@@ -321,6 +322,11 @@ void setup()
   ArduinoOTA.onError([](ota_error_t error) { Serial.printf("OTA Error[%u]: ", error);});
   ArduinoOTA.begin();
 
+  // set mDNS announcement - do that after the OTA init as it will set hostname too. 
+  MDNS.begin(status.name.c_str());
+  MDNS.disableArduino(); // disable announcement from OTA
+  MDNS.addService("http", "tcp", 80);
+  
   // http Webserver for receiving commands
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE");
