@@ -13,6 +13,10 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
 /*td:not(:first-child) { max-width: 5.5em; overflow: visible; } */
 </style>
 
+<button onclick="set_channels('enabled',1)">enable all</button>
+<button onclick="set_channels('enabled',0)">disable all</button>
+<button onclick="set_channels('reset_zero',1)">set zero all</button>
+<br>
 <table id=channels>
   <tr><td><h2>Channel</h2></td> <td><h2>0</h2></td> <td><h2>1</h2></td> <td><h2>2</h2></td> <td><h2>3</h2></td> </tr>
   <tr><td>Driver</td><td>
@@ -119,6 +123,11 @@ function set_all(el) {
     if(cmd)
       websocket.send(cmd);  
   el.value = "";
+}
+
+function set_channels(param, value) {
+  for(let channel=0; channel<4; channel++)
+    websocket.send(`${param}_${channel} ${value}`);  
 }
 
 // show a single value in an input / select element.
