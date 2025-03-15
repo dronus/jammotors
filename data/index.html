@@ -113,6 +113,14 @@ function set(el, no_update) {
   }
 }
 
+function set_all(el) {
+  let cmds = el.value;  
+  for(let cmd of cmds.split("\n"))
+    if(cmd)
+      websocket.send(cmd);  
+  el.value = "";
+}
+
 // show a single value in an input / select element.
 // if there is no DOM element for the given id, it is created in the global settings table.
 function show(id, value) {
