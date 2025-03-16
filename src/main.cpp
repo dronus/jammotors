@@ -225,20 +225,43 @@ void send_status() {
   ws.textAll(buffer);
 }
 
+
+void send_osc() {
+  if(!status.osc_out_port)
+    return;
+  // send current position of all axes as OSC MIDI message, if configured
+  for(uint8_t i=0; i<max_axes; i++)
+    if(axes[i].ik_midi_cc) {
+      float pos = (axes[i].ik_feedback - axes[i].ik_offset) / (float)axes[i].ik_midi_a * 128.f;
+      pos = max(0.f,min(127.f,pos));
+      int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
+      oscUdp.sendInt("/midi",midi_data);
+    }
+    
+  // send current IK position as native OSC message  
+  uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+  float osc_pos[4];
+  for(uint8_t i=0; i<4; i++)
+    osc_pos[i] = axes[axe_idxs[i]].ik_feedback - axes[axe_idxs[i]].ik_offset;
+  if(status.osc_out_port)
+    oscUdp.sendMessage("/xyza","ffff",osc_pos[0],osc_pos[1],osc_pos[2],osc_pos[3]);
+}
+
 uint32_t last_time;
 const uint32_t cycle_time = 10;
 void motionLoop(void* dummy){
   TickType_t xLastWakeTime = xTaskGetTickCount();
+  last_time = millis();
   while(true) {
     vTaskDelayUntil( &xLastWakeTime, cycle_time );
     // compute delta time
     uint32_t time = millis();
     status.uptime = time / 1000;
     uint32_t dt = time - last_time;
-    if(last_time == 0) dt=1;
     last_time = time;
     status.dt = dt / 1000.f;
-    status.dt_max = max(status.dt, status.dt_max);
+    if(status.uptime > 5)
+      status.dt_max = max(status.dt, status.dt_max);
 
     for(Axis& axis : axes)
       axis.ik_input = 0;
@@ -248,7 +271,8 @@ void motionLoop(void* dummy){
 
     for(Channel& c : channels)
       c.update(status.dt);
-     
+    
+    send_osc();
   }
 }
 
@@ -369,7 +393,7 @@ void setup()
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
     for(uint8_t i=0; i<max_axes; i++)
       if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
-        axes[i].ik_dmx_target = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
+        axes[i].ik_ext_in = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
   });
   artnetnode.begin();
   Serial.println("ArtNet node started.");
@@ -406,9 +430,14 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     if(type == 0xB0) {// CC change
       for(uint8_t i=0; i<max_axes; i++)
         if(axes[i].ik_midi_cc == midi[1])
-          axes[i].ik_midi_target = axes[i].ik_midi_a / 128.f * midi[2];
+          axes[i].ik_ext_in = axes[i].ik_midi_a / 128.f * midi[2];
     }
     Serial.println();
+  }
+  if ( receivedOscMessage.checkOscAddress("/xyza") ) {
+    uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+    for(uint8_t i=0; i<4; i++)
+      axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
   }
 }
 
@@ -420,14 +449,6 @@ void loop()
   artnetnode.read();
   oscUdp.onOscMessageReceived( oscMessageParser );
   ws.cleanupClients();
-
-  for(uint8_t i=0; i<max_axes; i++)
-    if(axes[i].ik_midi_cc) {
-      float pos = (axes[i].ik_feedback - axes[i].ik_offset) / (float)axes[i].ik_midi_a * 128.f;
-      pos = max(0.f,min(127.f,pos));
-      int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
-      oscUdp.sendInt("/midi",midi_data);
-    }
 
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 

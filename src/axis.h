@@ -15,7 +15,7 @@ struct Axis : public  Params {
   P_float (ik_dmx_a ,true,-10000, 10000, 0);
   P_uint8_t (ik_midi_cc,true,     0,   127, 0);
   P_float (ik_midi_a ,true,-10000, 10000, 0);
-  P_float   (ik_midi_target ,false,0, 0, 0);
+  P_float (ik_ext_in,false,0, 0, 0);
   P_float (ik_hid_a  ,true,-10000, 10000, 0);
   P_int32_t (ik_hid_ch ,true,-1, 15, -1);
   P_float (midi_move_a ,true,-1000, 1000, 0);
@@ -25,7 +25,6 @@ struct Axis : public  Params {
 
   float vel=0, ik_input=0;
   float ik_phase=0;
-  float ik_dmx_target=0;
   float random_target=0, random_dt=0;
   
   float compute_max_vel(float dx_target, float v0, float a_max, float vel_k) {
@@ -45,7 +44,7 @@ struct Axis : public  Params {
   float update(float dt, float vel_max, float acc_max, float vel_k) {
   
     // add external inputs
-    ik_input += ik_manual + ik_offset + ik_dmx_target + ik_midi_target;
+    ik_input += ik_manual + ik_offset + ik_ext_in;
     // add oscillator
     ik_input += motion_fm_osc(0.f, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
     // add random movement
