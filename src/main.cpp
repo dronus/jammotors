@@ -29,6 +29,7 @@
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include "esp_wifi.h"
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
@@ -312,6 +313,7 @@ void setup()
       cycle++;
   }
   WiFi.setHostname(status.name.c_str());
+  esp_wifi_set_ps(WIFI_PS_NONE);
   Serial.println();
   Serial.print("connected, IP address: ");
   Serial.println(WiFi.localIP().toString().c_str());
