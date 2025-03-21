@@ -3,7 +3,7 @@
 
 struct MidiPicker : public Params{
 
-  P_int8_t(midi_base_note,true,0,96,48);
+  P_float(midi_base_note,true,0,96,48);
   P_float (midi_move_dur,true,0,10000,1000);
   P_float (midi_pick_dur,true,0,1000 , 200);
   P_end;
