@@ -120,7 +120,9 @@ void switchWifiAp() {
 
 void readPrefs(Params* params, int16_t channel_id = -1) {
   for(Param* p = params->getParams(); p; p=p->next()) {
-
+    
+    if(!p->desc->persist) continue;
+    
     char prefs_name[32];
     if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
       snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
