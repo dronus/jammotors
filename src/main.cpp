@@ -196,13 +196,15 @@ void setFromWs(char* key_value)  {
 
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
   for(Param* p = params.getParams(); p; p = p->next())
-    if(p->desc->persist == persistent)
-      if(index == -1 && p->desc->type == P_STRING)
-        ptr += (size_t)sprintf(ptr,"%s %s\n",p->desc->name, p->getString().c_str());
-      else if(index == -1)
-        ptr += (size_t)sprintf(ptr,"%s %.5g\n",p->desc->name, p->get());
-      else
-        ptr += (size_t)sprintf(ptr,"%s_%d %.5g\n",p->desc->name, index, p->get());
+    if(p->desc->persist == persistent) {
+      ptr += (size_t)sprintf(ptr,"%s", p->desc->name);
+      if(index != -1) // add index to name, if set
+        ptr += (size_t)sprintf(ptr,"_%d", index);
+      if(p->desc->type != P_STRING)  // if number
+        ptr += (size_t)sprintf(ptr," %.5g\n",p->get());
+      else // if string
+        ptr += (size_t)sprintf(ptr," %s\n",p->getString().c_str());
+    }
 }
 
 template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[], uint8_t len,  bool persistent) {
