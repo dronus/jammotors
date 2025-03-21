@@ -12,6 +12,8 @@ struct Channel : public Params {
   P_float (pos_kd, true,0, 5000, 100);
   P_float (ik_a  ,true,-100000, 100000, 0);
   P_float (pos_a ,true,-100000, 100000, 1);
+  P_float (pos_min ,true,-100000, 100000, -1000);
+  P_float (pos_max ,true,-100000, 100000,  1000);
   P_uint8_t (enabled   ,false,0,1,0);
   P_uint8_t (alarm,false,0,1,0);
   P_uint8_t (reset_zero,false,0,1,0);
@@ -49,7 +51,7 @@ struct Channel : public Params {
     }
 
     // compute and set motion target
-    target = ik_target;
+    target = min(max(ik_target, pos_min),pos_max); 
    
     if(!last_enabled && enabled)
       alarm = 0;
