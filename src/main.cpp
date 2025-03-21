@@ -103,6 +103,9 @@ struct Status : public Params {
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
   P_string   (osc_out_ip  ,  true, "0.0.0.0"); // crashes with empty default string "" - why ?
   P_uint32_t (osc_out_port,  true, 0, 0xFFFF, 8888);
+  P_uint32_t (nvs_free, false, 0, 0,0 );
+  P_uint32_t (fs_free, false, 0, 0,0 );
+  P_uint32_t (ram_free, false, 0, 0,0 );
   P_end;
 } status;
   
@@ -134,7 +137,16 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
     Serial.print(prefs_name);Serial.print(" ");
     if(prefs.isKey(prefs_name)) {
       if(p->desc->type == P_STRING) {
-        String val = prefs.getString(prefs_name,"DEADBEEF");
+        String val;
+        char file_name[32];
+        snprintf(file_name, sizeof(file_name), "/%s", prefs_name);          
+        if(LittleFS.exists(file_name)) {
+          File file = LittleFS.open(file_name, FILE_READ);
+          val = file.readString();
+          file.close();
+          Serial.printf("Prefs read from %s\n",file_name);
+        }else
+          val = prefs.getString(prefs_name,"DEADBEEF");
         Serial.print(val);
         p->set(std::string(val.c_str()));
       } else {
@@ -162,8 +174,22 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
       p->set(value_str);
       if(p->desc->persist)
-        if(p->desc->type == P_STRING) 
-          prefs.putString(prefs_name, value_str);
+        if(p->desc->type == P_STRING) {
+          char file_name[32];
+          snprintf(file_name, sizeof(file_name), "/%s", prefs_name);          
+          if(strlen(value_str) < 32) {
+            prefs.putString(prefs_name, value_str);
+            if(LittleFS.exists(file_name)) {
+              LittleFS.remove(file_name);
+              Serial.printf("Prefs removed %s\n",file_name);
+            }
+          } else {
+            File f = LittleFS.open(file_name, FILE_WRITE, true);
+            f.print(value_str);
+            f.close();
+            Serial.printf("Prefs written to %s\n",file_name);
+          }
+        }
         else
           prefs.putFloat(prefs_name, p->get());
     }
@@ -470,6 +496,9 @@ void loop()
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
   if(status.send_status) {
+    status.nvs_free = prefs.freeEntries();
+    status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
+    status.ram_free = esp_get_free_heap_size();
     status.send_status = 0;
     send_status();
   }
