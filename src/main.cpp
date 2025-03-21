@@ -53,6 +53,7 @@ const float pi = 3.1415926f;
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
 #include "midi_picker.h"
+#include "cue.h"
 
 
 
@@ -74,6 +75,10 @@ Kinematic kinematic;
 int homing = 0;
 
 Channel channels[max_channels];
+const uint8_t max_axes = 7;
+Axis axes[max_axes];
+const uint8_t max_cues = 4;
+Cue cues[max_cues];
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -101,9 +106,6 @@ struct Status : public Params {
   P_end;
 } status;
   
-const uint8_t max_axes = 7;
-Axis axes[max_axes];
-
 // switch WiFi to acces point mode and provide an captive portal page.
 // this allows configuration of WiFi credentials in case the 
 // configured one is unavailable.
@@ -157,6 +159,7 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     if ( strcmp(prefs_name, key) == 0 ) {
+      // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
       p->set(value_str);
       if(p->desc->persist)
         if(p->desc->type == P_STRING) 
@@ -189,6 +192,10 @@ void setFromWs(char* key_value)  {
   for(uint8_t i=0; i<max_axes; i++)
     setParam(&axes[i], i,  key, value_str);
 
+  // check for cue parameters
+  for(uint8_t i=0; i<max_cues; i++)
+    setParam(&cues[i], i,  key, value_str);
+
   // TODO handle instantaneous commands
   //if (request->hasParam("reset") )
   //  ESP.restart();
@@ -219,6 +226,7 @@ void writeAllParamsToBuffer(char* buffer, bool persistent) {
   writeParamsToBuffer(ptr, status, persistent);
   writeParamsToBuffer(ptr, midi_picker, persistent);
   writeParamsArrayToBuffer(ptr, axes, max_axes, persistent);
+  writeParamsArrayToBuffer(ptr, cues, max_cues, persistent);
 }
 
 // WebSocket "status" API to send current status
@@ -316,6 +324,8 @@ void setup()
   }
   for(uint8_t axis_id = 0; axis_id<max_axes; axis_id++)
     readPrefs(&axes[axis_id],axis_id);
+  for(uint8_t cue_id = 0; cue_id<max_cues; cue_id++)
+    readPrefs(&cues[cue_id],cue_id);
 
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
@@ -453,6 +463,9 @@ void loop()
   artnetnode.read();
   oscUdp.onOscMessageReceived( oscMessageParser );
   ws.cleanupClients();
+  
+  for(uint8_t i=0; i<max_cues; i++)
+    cues[i].update(&setFromWs);
 
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
