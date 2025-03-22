@@ -213,18 +213,22 @@ function show_all(data) {
   let ctx = canvas.getContext("2d");
   ctx.drawImage(canvas,-1,0);
 
-  let plots = ["ik_target","ik_feedback"];
+  let plots = ["ik_target","ik_feedback","ik_pred_err"];
   ctx.fillStyle="#ffffff";
   ctx.fillRect(canvas.width-2,0,2,canvas.height);
-  ctx.fillStyle="#000000";
   for(let i=4; i<7; i++) {
     let param1 = params.find(param => param[0] == plots[0]+'_'+i);
     let param2 = params.find(param => param[0] == plots[1]+'_'+i);
+    let param3 = params.find(param => param[0] == plots[2]+'_'+i);
     if(!param1 || !param2) break;
     let y  = parseFloat(param1[1])/1000.; 
     let dy = parseFloat(param2[1])/1000. - y ;
+    let dy2 = parseFloat(param3[1])/1000.;
     if(dy<0) y+=dy;
+    ctx.fillStyle="#000000";
     ctx.fillRect(canvas.width-2,canvas.height * ( y + (i-4) + 0.5) / 4, 2,1+Math.abs(canvas.height * dy / 4));
+    ctx.fillStyle="#00FF0099";
+    ctx.fillRect(canvas.width-2,canvas.height * ( y + dy2 + (i-4) + 0.5) / 4, 2,2);
   }
 }
 
