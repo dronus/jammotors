@@ -123,6 +123,39 @@ void switchWifiAp() {
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
 
+// read string from either FS file if existent or NVM Preferences otherwise
+String readPrefsString(const char* prefs_name, const char* default_str) {
+  String val = default_str;
+  char file_name[32];
+  snprintf(file_name, sizeof(file_name), "/%s", prefs_name);
+  if(LittleFS.exists(file_name)) {
+    File file = LittleFS.open(file_name, FILE_READ);
+    val = file.readString();
+    file.close();
+    Serial.printf("Prefs read from  %s\n",file_name);
+  }else if (prefs.isKey(prefs_name))
+    val = prefs.getString(prefs_name);
+  return val;
+}
+
+// save a string to either NVM Prefs, if small enough or FS file if larger.
+void writePrefsString(const char* prefs_name, const char* value_str) {
+  char file_name[32];
+  snprintf(file_name, sizeof(file_name), "/%s", prefs_name);
+  if(strlen(value_str) < 64) {
+    prefs.putString(prefs_name, value_str);
+    if(LittleFS.exists(file_name)) {
+      LittleFS.remove(file_name);
+      Serial.printf("Prefs file removed %s\n",file_name);
+    }
+  } else {
+    File f = LittleFS.open(file_name, FILE_WRITE, true);
+    f.print(value_str);
+    f.close();
+    Serial.printf("Prefs written to %s\n",file_name);
+  }
+}
+
 void readPrefs(Params* params, int16_t channel_id = -1) {
   for(Param* p = params->getParams(); p; p=p->next()) {
     
@@ -135,25 +168,15 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     Serial.print(prefs_name);Serial.print(" ");
-    if(prefs.isKey(prefs_name)) {
-      if(p->desc->type == P_STRING) {
-        String val;
-        char file_name[32];
-        snprintf(file_name, sizeof(file_name), "/%s", prefs_name);          
-        if(LittleFS.exists(file_name)) {
-          File file = LittleFS.open(file_name, FILE_READ);
-          val = file.readString();
-          file.close();
-          Serial.printf("Prefs read from %s\n",file_name);
-        }else
-          val = prefs.getString(prefs_name,"DEADBEEF");
-        Serial.print(val);
-        p->set(std::string(val.c_str()));
-      } else {
-        float val = prefs.getFloat(prefs_name);
-        Serial.print(val);
-        p->set(val);
-      }
+    
+    if(p->desc->type == P_STRING) {    
+      String val = readPrefsString(prefs_name,p->desc->defString->c_str());
+      Serial.print(val);  
+      p->set(std::string(val.c_str()));
+    } else if (prefs.isKey(prefs_name)){
+      float val = prefs.getFloat(prefs_name);
+      Serial.print(val);
+      p->set(val);
     }
     Serial.println();
   }
@@ -174,22 +197,8 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
       p->set(value_str);
       if(p->desc->persist)
-        if(p->desc->type == P_STRING) {
-          char file_name[32];
-          snprintf(file_name, sizeof(file_name), "/%s", prefs_name);          
-          if(strlen(value_str) < 32) {
-            prefs.putString(prefs_name, value_str);
-            if(LittleFS.exists(file_name)) {
-              LittleFS.remove(file_name);
-              Serial.printf("Prefs removed %s\n",file_name);
-            }
-          } else {
-            File f = LittleFS.open(file_name, FILE_WRITE, true);
-            f.print(value_str);
-            f.close();
-            Serial.printf("Prefs written to %s\n",file_name);
-          }
-        }
+        if(p->desc->type == P_STRING)
+          writePrefsString(prefs_name,value_str);
         else
           prefs.putFloat(prefs_name, p->get());
     }
@@ -235,8 +244,9 @@ void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t ind
         ptr += (size_t)sprintf(ptr,"_%d", index);
       if(p->desc->type != P_STRING)  // if number
         ptr += (size_t)sprintf(ptr," %.5g\n",p->get());
-      else // if string
-        ptr += (size_t)sprintf(ptr," %s\n",p->getString().c_str());
+      else {// if string
+        ptr += (size_t)snprintf(ptr,256," %s\n",p->getString().c_str());
+      }
     }
 }
 
@@ -245,7 +255,7 @@ template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[
     writeParamsToBuffer(ptr, params[i], persistent, i );
 }
 
-void writeAllParamsToBuffer(char* buffer, bool persistent) {
+size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
   writeParamsArrayToBuffer(ptr, channels, max_channels, persistent);
   writeParamsToBuffer(ptr, kinematic, persistent);
@@ -253,13 +263,16 @@ void writeAllParamsToBuffer(char* buffer, bool persistent) {
   writeParamsToBuffer(ptr, midi_picker, persistent);
   writeParamsArrayToBuffer(ptr, axes, max_axes, persistent);
   writeParamsArrayToBuffer(ptr, cues, max_cues, persistent);
+  return ptr - buffer;
 }
 
 // WebSocket "status" API to send current status
 void send_status() {
   size_t len = 4096;
   char buffer[len];
-  writeAllParamsToBuffer(buffer, false);
+  size_t written = writeAllParamsToBuffer(buffer, false);
+  Serial.printf("DEBUG send_status bytes %d\n", written );
+  if(written >= len) Serial.println("send_status BUFFER OVERFLOW!"); 
   ws.textAll(buffer);
 }
 
@@ -402,9 +415,10 @@ void setup()
   httpServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
     AsyncResponseStream *response = request->beginResponseStream("text/html");
     // send global configuration Params
-    size_t len = 4096;
+    size_t len = 8192;
     char buffer[len];
-    writeAllParamsToBuffer(buffer, true);
+    size_t written = writeAllParamsToBuffer(buffer, true);
+    Serial.printf("DEBUG /config repsonse bytes %d\n", written );
     response->print(buffer);
     request->send(response);
   });
