@@ -101,10 +101,15 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
 
 <table id=cues>
   <tr><td><h3>Cues</h3></td></tr>
-  <tr><td>Run  </td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
+  <tr><td>Record</td><td><button id="cue_record_0">RECORD</button> </td></tr>
+  <tr><td>Play  </td><td><button id="cue_play_0">PLAY</button> </td></tr>
+  <tr><td>Stop record/play</td><td><button id="cue_stop">STOP</button> </td></tr>
+  <tr><td>Curr.Index</td><td><input id="cue_index"  type="number" disabled></td></tr>
+  <tr><td>Max.Index</td><td><input id="cue_size"  type="number" disabled></td></tr>
+  <tr><td>Run Script</td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Cursor</td><td> <input type=number id=cue_cursor_0> </td></tr>  
-  <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>
+  <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  
 </table>
 
 <canvas id=stats width="256" height="800"> </canvas>
