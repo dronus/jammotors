@@ -70,6 +70,7 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td><button id=reset>connect</button> </td></tr>
   
+  <tr><td><h4>IK Setup/h4></td></tr>  
   <tr><td>IK Offset (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
@@ -79,6 +80,12 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>MIDI base note</td><td>     <input type=number id=midi_base_note > </td></tr>  
   <tr><td>MIDI move (s)</td><td>     <input type=number id=midi_move_dur > </td></tr>
   <tr><td>MIDI pick (s)</td><td>     <input type=number id=midi_pick_dur > </td></tr>
+  
+  <tr><td><h4>Motion Recording</h4></td></tr>   
+  <tr><td>Running cue</td><td><input id="running_cue"  type="number" disabled></td></tr>
+  <tr><td>Rec/Play Index</td><td><input id="cue_index"  type="number" disabled></td></tr>
+  <tr><td>Rec/Play Length</td><td><input id="cue_size"  type="number" disabled></td></tr>
+  <tr><td>Stop record/play</td><td><button id="cue_stop">STOP</button> </td></tr>
 </table>
 
 <table id=global_config>
@@ -95,7 +102,7 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>Amplitude </td><td>     <input type=number id=ik_random_a_0 > </td></tr>
   <tr><td><h4>ArtNet DMX Input</h4></td></tr>
   <tr><td>DMX Channel </td><td> <input type=number id=ik_dmx_ch_0> </td></tr>
-  <tr><td>DMX Scale </td><td>     <input type=number id=ik_dmx_a_0 > </td></tr>
+  <tr><td>DMX Scale </td><td>     <input type=number id=ik_dmx_a_0 > </td></tr>  
   <tr><td><h4>MIDI / HID Input</h4></td></tr>
 </table>
 
@@ -104,9 +111,6 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
   <tr><td>Record</td><td><button id="cue_record_0">RECORD</button> </td></tr>
   <tr><td>Play  </td><td><button id="cue_play_0">PLAY</button> </td></tr>
-  <tr><td>Stop record/play</td><td><button id="cue_stop">STOP</button> </td></tr>
-  <tr><td>Curr.Index</td><td><input id="cue_index"  type="number" disabled></td></tr>
-  <tr><td>Max.Index</td><td><input id="cue_size"  type="number" disabled></td></tr>
   <tr><td>Run Script</td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Cursor</td><td> <input type=number id=cue_cursor_0> </td></tr>  
   <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  

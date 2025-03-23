@@ -28,15 +28,7 @@ struct Cue  : public Params{
   
     if(!cue_running)
       return;
-    
-    /*
-    if(cue_cursor > cue_script.length()-1) {
-      cue_cursor = 0;
-      cue_running = 0;
-      return;
-    }
-    */
-    
+
     int32_t end = cue_script.find("\\n", cue_cursor);
     if(end == std::string::npos) {
       // no further commands
