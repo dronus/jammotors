@@ -77,14 +77,14 @@ struct Recorder {
       if(index >= 1024) stop();      
     }
         
-    if(playback && dt > frames[3].dt) {
-      dt -= frames[3].dt;
+    if(playback && dt > 0) {
       frames[0] = frames[1];
       frames[1] = frames[2];
-      frames[2] = frames[3];
       // file.seek((index) * sizeof(Frame));
-      file.read((uint8_t*)&frames[3], sizeof(Frame));
-      Serial.printf("IK CP read: idx: %d dt: %.5g file pos: %d \n", index, frames[2].dt, file.position());    
+      file.read((uint8_t*)&frames[2], sizeof(Frame));
+      //dt = 0;
+      dt -= frames[2].dt;
+      Serial.printf("IK CP read: idx: %d dt: %.5g file pos: %d \n", index, dt, file.position());
       index++;
       if(index >= size()) stop();
     }

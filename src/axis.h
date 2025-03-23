@@ -89,34 +89,35 @@ struct Axis : public  Params {
     return a * (1.f - t) + b * t;
   }
   
-  float predict_center(float dt0) {
-    // approximate speed and acceleration for last known time ik_cp_t[0]
-    // currently we attribute all linear approximations to the right side eg. the newest point in time.  
+  // inter- or extrapolate position at t0 using matching three known points with a quadratic polynomial. 
+  // works both as an extrapolating predictor (t0 > 0) and an interpolating approximator (t < 0).
+  // control points are defined by their delta positions, and are aligned at t = 0 going into the t-negative direction.
+  float interpolate(float t0) {
+
     Position p1 = recorder.get(0,id), p2=recorder.get(-1,id), p3=recorder.get(-2,id);
-    float dt1 = p1.dt, dt2 = p2.dt;
-        
-    if(dt1 == 0.f || dt2 == 0.f) dt1 = dt2 = 0.1; // bootstrapping on startup
+
+    float t1 = -p1.dt, t2 = t1 -p2.dt;
+    if(t1 == 0.f || t2 == 0.f || t1 == t2) t1 = -0.1f, t2 = -0.2f; // bootstrapping on startup
+
     float x1 = p1.x, x2 = p2.x, x3 = p3.x;
-    float dx1 = x1 - x2;
-    float dx2 = x2 - x3;
-    float v1  = dx1 / dt1; // attribute velocities to center points
-    float v2  = dx2 / dt2;
-    float dt12 = dt1/2 + dt2/2;
-    float dv12 = v1 - v2; // attribute acceleration to center point 
-    float a12  = dv12 / dt12;
+    float s1 = x2 - x1;
+    float s2 = x3 - x1;
+    float v1  = s1 / t1; // integral velocity on s1
+    float v2  = s2 / t2; // integral velocity on s2
     
-    // get prediction    
-    float v0 = v1 + a12 * dt1 / 2;
-    float x0 = x1 + v0 * dt0 + a12 * dt0 * dt0;
-    
+    float a = 2 * (v1-v2) / (t1-t2);      // formula from solving  s = a*t*t + v0*t equations for s1 and s2.
+    float v0= (s1-1.f/2.f*a*t1*t1) / t1;  // also from same equations
+
+    // get interpolation
+    float x0 = x1 + v0*t0 + 1.f/2.f * a*t0*t0;
+
     return x0;
   }
-  
   
   void predict(float dt) {
 
     // predict
-    float x0 = predict_center(recorder.dt);
+    float x0 = interpolate(recorder.dt);
     // compare
     ik_pred_err = x0 - (ik_feedback - ik_offset); 
     
@@ -132,7 +133,7 @@ struct Axis : public  Params {
     
     // on playback, set manual axis input and advance on need
     if(recorder.playback)
-      ik_manual = x0;          
+      ik_manual = x0;
   }
 };
 
