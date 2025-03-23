@@ -10,7 +10,7 @@ struct Cue  : public Params{
   P_bool (cue_record, false, false);
   P_bool (cue_play, false, false);
   P_end;
-    
+
   static uint8_t next_id;
   uint8_t id;
   Cue() {id = next_id++;}  // assign unique id

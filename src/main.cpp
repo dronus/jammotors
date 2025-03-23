@@ -462,7 +462,7 @@ void setup()
   vTaskPrioritySet(NULL, 2);
  
   // start motion task with priority 11 - the web server defaults to 10, so we are higher. 
-  xTaskCreatePinnedToCore(motionLoop,"MotionLoop",4096,NULL,11,NULL ,1); 
+  xTaskCreatePinnedToCore(motionLoop,"MotionLoop",4096,NULL,19,NULL ,1); 
  
   // light status led
   digitalWrite(statusLedPin,HIGH);
@@ -508,9 +508,9 @@ void loop()
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
   if(status.send_status) {
-    //status.nvs_free = prefs.freeEntries();
-    //status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
-    //status.ram_free = esp_get_free_heap_size();
+    // status.nvs_free = prefs.freeEntries();
+    status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
+    // status.ram_free = esp_get_free_heap_size();
     status.send_status = 0;
     send_status();
   }
