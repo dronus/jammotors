@@ -508,9 +508,9 @@ void loop()
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
   if(status.send_status) {
-    status.nvs_free = prefs.freeEntries();
-    status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
-    status.ram_free = esp_get_free_heap_size();
+    //status.nvs_free = prefs.freeEntries();
+    //status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
+    //status.ram_free = esp_get_free_heap_size();
     status.send_status = 0;
     send_status();
   }
