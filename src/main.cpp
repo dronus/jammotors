@@ -105,6 +105,7 @@ struct Status : public Params {
   P_uint32_t (nvs_free, false, 0, 0,0 );
   P_uint32_t (fs_free, false, 0, 0,0 );
   P_uint32_t (ram_free, false, 0, 0,0 );
+  P_bool(reset, false, false);
   P_end;
 } status;
   
@@ -229,10 +230,6 @@ void setFromWs(char* key_value)  {
   // check for cue parameters
   for(uint8_t i=0; i<max_cues; i++)
     setParam(&cues[i], i,  key, value_str);
-
-  // TODO handle instantaneous commands
-  //if (request->hasParam("reset") )
-  //  ESP.restart();
 };
 
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
@@ -327,11 +324,12 @@ void motionLoop(void* dummy){
 
 void setup() 
 {
-  Serial.begin(115200);
-  Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
-
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
+  digitalWrite(statusLedPin,LOW);
+
+  Serial.begin(115200);
+  Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
 
   // make sure WiFi won't autoconnect and store connections on itself
   WiFi.disconnect();
@@ -514,6 +512,8 @@ void loop()
     status.send_status = 0;
     send_status();
   }
+  if(status.reset)    
+    ESP.restart();
 
   delay(10);
 }
