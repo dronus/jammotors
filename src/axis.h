@@ -1,5 +1,7 @@
 #pragma once
 
+#include "position_recorder.h"
+
 struct Axis : public  Params {
   P_float (ik_target ,false,-1000, 1000, 0);
   P_float (ik_manual ,false,-1000, 1000, 0);
@@ -23,9 +25,6 @@ struct Axis : public  Params {
   P_float (ik_pos ,false,0, 0, 0);
   P_float (ik_pred_err, false, 0,0,0);
   P_float (ik_pred_thres, true, 0,1000,10);
-  P_uint32_t (ik_cp_index, false, 0,ik_cp_length,2);
-  P_uint8_t (ik_pred_record, false, 0, 1, 0);
-  P_uint8_t (ik_pred_play, false, 0, 1, 0);
   P_end;
 
   uint8_t id;
@@ -93,11 +92,11 @@ struct Axis : public  Params {
   float predict_center(float dt0) {
     // approximate speed and acceleration for last known time ik_cp_t[0]
     // currently we attribute all linear approximations to the right side eg. the newest point in time.  
-    uint32_t i = ik_cp_index;    
-    float dt1 = ik_cp_t[i], dt2 = ik_cp_t[i-1];  
+    Position p1 = recorder.get(0,id), p2=recorder.get(-1,id), p3=recorder.get(-2,id);
+    float dt1 = p1.dt, dt2 = p2.dt;
         
     if(dt1 == 0.f || dt2 == 0.f) dt1 = dt2 = 0.1; // bootstrapping on startup
-    float x1 = ik_cp_x[i], x2 = ik_cp_x[i-1], x3 = ik_cp_x[i-2];
+    float x1 = p1.x, x2 = p2.x, x3 = p3.x;
     float dx1 = x1 - x2;
     float dx2 = x2 - x3;
     float v1  = dx1 / dt1; // attribute velocities to center points
@@ -113,46 +112,27 @@ struct Axis : public  Params {
     return x0;
   }
   
-  float ik_pred_dt=0;
+  
   void predict(float dt) {
 
     // predict
-    float x0 = predict_center(ik_pred_dt);
+    float x0 = predict_center(recorder.dt);
     // compare
     ik_pred_err = x0 - (ik_feedback - ik_offset); 
     
     // on recording, insert new control point, if error is above threshold
-    if(ik_pred_record && abs(ik_pred_err) > ik_pred_thres) {
-      ik_cp_index++;
-      if(ik_cp_index >= ik_cp_length) {
-        ik_pred_record = 0;        
-        return;
-      }
-      ik_cp_x[ik_cp_index] = ik_feedback - ik_offset;
-      ik_cp_t[ik_cp_index] = ik_pred_dt;
-      ik_pred_dt = 0;
+    
+    if(recorder.recording && id >= 3) // only record wrist and IK axes for now.
+      recorder.put(id, ik_feedback - ik_offset, abs(ik_pred_err) > ik_pred_thres);
       
-      Serial.printf("New IK CP #%d on axis %d : %.5g after %.5g s (error was %.5g) \n", ik_cp_index, id, ik_cp_x[ik_cp_index], ik_cp_t[ik_cp_index], ik_pred_err);      
+    if(recorder.recording && abs(ik_pred_err) > ik_pred_thres) {
+            
+      Serial.printf("New IK CP #%d on axis %d : %.5g after %.5g s (error was %.5g) \n", recorder.index, id, recorder.get(0,id).x, recorder.get(0,id).dt, ik_pred_err);      
     }
     
     // on playback, set manual axis input and advance on need
-    if(ik_pred_play) {
-      ik_manual = x0;
-      // advance index on need. We always predict to the left of the next control point for better accuracy.
-      if(ik_pred_dt > ik_cp_t[ik_cp_index+1]) {
-        ik_pred_dt -= ik_cp_t[ik_cp_index+1];
-        ik_cp_index++;
-      }
-      if(ik_cp_index >= ik_cp_length)
-        ik_pred_play = 0;      
-    } 
-    
-    if(ik_pred_record || ik_pred_play)
-      ik_pred_dt += dt;
-    else {
-      ik_cp_index = 2;
-      ik_pred_dt = 0;
-    }
+    if(recorder.playback)
+      ik_manual = x0;          
   }
 };
 

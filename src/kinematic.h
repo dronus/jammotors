@@ -3,6 +3,7 @@
 #include "param.h"
 #include "channel.h"
 #include "axis.h"
+#include "position_recorder.h"
 
 struct Kinematic : public Params {
   P_float (ik_length_c,true,    0,  1000,  90);
@@ -11,10 +12,19 @@ struct Kinematic : public Params {
   P_float (ik_vel_max,true,    0,  10000,  500);
   P_float (ik_vel_k  ,true,    0,   1000,  100);
   P_float (ik_acc_max,true,    0, 100000, 5000);
+  P_bool  (cue_stop, false,false);
+  P_uint32_t(cue_index, false,0,1024,0);
+  P_uint32_t(cue_size, false,0,1024,0);
   P_end;
 
   void update(float dt, Axis* axes, Channel* channels) {
-  
+    if(cue_stop) {
+      cue_stop = false;
+      recorder.stop();      
+    }
+    recorder.update(dt);
+    cue_index = recorder.index;
+    cue_size = recorder.size();
     for(uint8_t i=0; i<7; i++)
       axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
     channels[3].ik_target = channels[3].pos_a * axes[3].ik_pos;

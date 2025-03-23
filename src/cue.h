@@ -1,12 +1,31 @@
+#pragma once 
+
+#include "position_recorder.h"
 
 struct Cue  : public Params{
   P_string  (cue_name, true, "Unnamed");
   P_uint8_t (cue_running, false, 0, 1, 0);
   P_int32_t (cue_cursor, false, 0, 4000, 0);
   P_string  (cue_script, true, "\n");
+  P_bool (cue_record, false, false);
+  P_bool (cue_play, false, false);
   P_end;
     
+  static uint8_t next_id;
+  uint8_t id;
+  Cue() {id = next_id++;}  // assign unique id
+    
   void update( void (*command_func)(char* command) ) {
+  
+    if(cue_record) {
+      cue_record = false;
+      recorder.record(id);
+    }
+    if(cue_play) {
+      cue_play = false;
+      recorder.play(id);
+    }
+  
     if(!cue_running)
       return;
     
@@ -35,3 +54,6 @@ struct Cue  : public Params{
     cue_cursor = end + 2; // skip \n
   }  
 };
+
+uint8_t Cue::next_id = 0;
+

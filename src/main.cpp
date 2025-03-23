@@ -56,7 +56,6 @@ const float pi = 3.1415926f;
 #include "cue.h"
 
 
-
 Preferences prefs;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer httpServer(80);
@@ -271,8 +270,7 @@ void send_status() {
   size_t len = 4096;
   char buffer[len];
   size_t written = writeAllParamsToBuffer(buffer, false);
-  Serial.printf("DEBUG send_status bytes %d\n", written );
-  if(written >= len) Serial.println("send_status BUFFER OVERFLOW!"); 
+  if(written >= len) Serial.printf("DEBUG send_status BUFFER OVERFLOW! bytes: %d \n", written ); 
   ws.textAll(buffer);
 }
 
