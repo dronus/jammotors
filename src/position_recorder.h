@@ -5,8 +5,8 @@ struct Position {
 };
 
 struct Frame {
-  float dt;
-  float x[7];
+  uint32_t dt;
+  int16_t x[4];
 };
 
 struct Recorder {
@@ -48,12 +48,14 @@ struct Recorder {
   
   Position get(size_t index, uint8_t axis) {
     Frame& f = frames[index + 2]; 
-    return { f.dt, f.x[axis] };
+    // only IK and wrist angle axes 3-6 are stored.
+    return { f.dt / 1000.f, axis >=3 ? (float)f.x[axis-3] : 0.f};
   }
   
   bool need_cp = false;
-  void put(uint8_t axis, float x, bool is_control) {  
-    frames[3].x[axis] = x;
+  void put(uint8_t axis, float x, bool is_control) {
+    if(axis<3) return; // only IK and wrist angle axes 3-6 are stored.
+    frames[3].x[axis-3] = x;
     need_cp = need_cp || is_control;
   }
   
@@ -63,10 +65,10 @@ struct Recorder {
 
     if(recording && need_cp) {
       need_cp = false;
-      frames[3].dt = dt;
+      frames[3].dt = dt * 1000.f;
       // file.seek(index * sizeof(Frame));
       file.write((uint8_t*)&frames[3], sizeof(Frame));
-      Serial.printf("IK CP written: idx: %d dt: %.5g file pos: %d \n", index, frames[3].dt, file.position());
+      Serial.printf("IK CP written: idx: %d dt: %.5g file pos: %d \n", index, frames[3].dt / 1000.f, file.position());
       
       frames[0] = frames[1];
       frames[1] = frames[2];
@@ -83,7 +85,7 @@ struct Recorder {
       // file.seek((index) * sizeof(Frame));
       file.read((uint8_t*)&frames[2], sizeof(Frame));
       //dt = 0;
-      dt -= frames[2].dt;
+      dt -= frames[2].dt / 1000.f;
       Serial.printf("IK CP read: idx: %d dt: %.5g file pos: %d \n", index, dt, file.position());
       index++;
       if(index >= size()) stop();
