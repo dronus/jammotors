@@ -71,12 +71,12 @@ struct Kinematic : public Params {
 
   float update_feedback(Channel* channels, Axis* axes) {
 
-    for(uint8_t i=0; i<3; i++) 
-      axes[i].ik_feedback = channels[i].position / (float)channels[0].ik_a;
+    for(uint8_t i=0; i<=3; i++) 
+      axes[i].ik_feedback = channels[i].position / (float)channels[i].ik_a;
 
-    float alpha = ( channels[0].position - channels[0].pos_a * axes[0].ik_pos ) / (float)channels[0].ik_a * (float)pi;
-    float beta  = ( channels[1].position - channels[1].pos_a * axes[1].ik_pos ) / (float)channels[1].ik_a * (float)pi;
-    float gamma = ( channels[2].position - channels[2].pos_a * axes[2].ik_pos ) / (float)channels[2].ik_a * (float)pi;
+    float alpha = ( channels[0].position - channels[0].pos_a * axes[0].ik_offset ) / (float)channels[0].ik_a * (float)pi;
+    float beta  = ( channels[1].position - channels[1].pos_a * axes[1].ik_offset ) / (float)channels[1].ik_a * (float)pi;
+    float gamma = ( channels[2].position - channels[2].pos_a * axes[2].ik_offset ) / (float)channels[2].ik_a * (float)pi;
     
     float x=0, y=0, z=0;
     z += ik_length_b;
