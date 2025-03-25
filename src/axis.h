@@ -20,6 +20,7 @@ struct Axis : public  Params {
   P_float (ik_ext_in,false,0, 0, 0);
   P_float (ik_hid_a  ,true,-10000, 10000, 0);
   P_int32_t (ik_hid_ch ,true,-1, 15, -1);
+  P_float (ik_hid_in ,false,-1, 1, 0);
   P_float (midi_move_a ,true,-10000, 10000, 0);
   P_float (midi_pick_a ,true,-10000, 10000, 0);
   P_float (ik_pos ,false,0, 0, 0);
@@ -57,7 +58,7 @@ struct Axis : public  Params {
   float update(float dt, float vel_max, float acc_max, float vel_k) {
   
     // add external inputs
-    ik_input += ik_manual + ik_offset + ik_ext_in;
+    ik_input += ik_manual + ik_offset + ik_hid_in * ik_hid_a + ik_ext_in;
     // add oscillator
     ik_input += motion_fm_osc(0.f, ik_osc_a, ik_osc_f, ik_osc_fb, dt, ik_phase);
     // add random movement

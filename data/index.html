@@ -259,15 +259,14 @@ function updateGamepad() {
 
       let channel = parseInt(channel_el.value);
       if(channel < 0 || channel > gamepad.axes.length) continue;
-
-      let a = parseInt(document.getElementById("ik_hid_a_"+i).value);
-      let target_el = document.getElementById("ik_manual_"+i);
-      let value = Math.round(gamepad.axes[channel] * a);
+    
+      let target_el = document.getElementById("ik_hid_in_"+i);
+      let value = gamepad.axes[channel];
       target_el.value = value;
       set(target_el,true);
     }
   }
-  setTimeout(updateGamepad,20);
+  setTimeout(updateGamepad,40);
 }
 updateGamepad();
 
