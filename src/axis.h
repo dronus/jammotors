@@ -3,11 +3,11 @@
 #include "position_recorder.h"
 
 struct Axis : public  Params {
-  P_float (ik_target ,false,-1000, 1000, 0);
-  P_float (ik_manual ,false,-1000, 1000, 0);
-  P_float (ik_offset,true, -1000,  1000, 0);
+  P_float (ik_target ,false,-10000, 10000, 0);
+  P_float (ik_manual ,false,-10000, 10000, 0);
+  P_float (ik_offset,true, -10000,  10000, 0);
   P_float (ik_feedback ,false,0,0, 0);
-  P_float (ik_osc_a ,true, -1000,  1000, 0);
+  P_float (ik_osc_a ,true, -10000,  10000, 0);
   P_float (ik_osc_f ,true,     0, 100, 1);
   P_float (ik_osc_fb,true,     0,  2, 0);
   P_float (ik_random_a  ,true, -10000, 10000, 0);
@@ -20,11 +20,11 @@ struct Axis : public  Params {
   P_float (ik_ext_in,false,0, 0, 0);
   P_float (ik_hid_a  ,true,-10000, 10000, 0);
   P_int32_t (ik_hid_ch ,true,-1, 15, -1);
-  P_float (midi_move_a ,true,-1000, 1000, 0);
-  P_float (midi_pick_a ,true,-1000, 1000, 0);
+  P_float (midi_move_a ,true,-10000, 10000, 0);
+  P_float (midi_pick_a ,true,-10000, 10000, 0);
   P_float (ik_pos ,false,0, 0, 0);
   P_float (ik_pred_err, false, 0,0,0);
-  P_float (ik_pred_thres, true, 0,1000,10);
+  P_float (ik_pred_thres, true, 0,10000,10);
   P_end;
 
   uint8_t id;
