@@ -106,6 +106,8 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td><h4>MIDI / HID Input</h4></td></tr>
 </table>
 
+<canvas id=stats width="256" height="800"> </canvas>
+
 <table id=cues>
   <tr><td><h3>Cues</h3></td></tr>
   <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
@@ -116,7 +118,6 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  
 </table>
 
-<canvas id=stats width="256" height="800"> </canvas>
 <textarea id=command onchange="set_all(this)" placeholder="Commands here"></textarea>
 <script>
 
