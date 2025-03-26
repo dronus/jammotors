@@ -59,9 +59,69 @@ struct Recorder {
     need_cp = need_cp || is_control;
   }
   
-  void update(float _dt) {
-    if(recording || playback)
+  void update_axis(float dt, uint8_t id) {
+    
+  
+  }
+  
+   
+  // inter- or extrapolate position at t0 using matching three known points with a quadratic polynomial. 
+  // works both as an extrapolating predictor (t0 > 0) and an interpolating approximator (t < 0).
+  // control points are defined by their delta positions, and are aligned at t = 0 going into the t-negative direction.
+  float interpolate(Position p1, Position p2, Position p3, float t0) {
+
+    float t1 = -p1.dt, t2 = t1 -p2.dt;
+    if(t1 == 0.f || t2 == 0.f || t1 == t2) t1 = -0.1f, t2 = -0.2f; // bootstrapping on startup
+
+    float x1 = p1.x, x2 = p2.x, x3 = p3.x;
+    float s1 = x2 - x1;
+    float s2 = x3 - x1;
+    float v1  = s1 / t1; // integral velocity on s1
+    float v2  = s2 / t2; // integral velocity on s2
+    
+    float a = 2 * (v1-v2) / (t1-t2);      // formula from solving  s = a*t*t + v0*t equations for s1 and s2.
+    float v0= (s1-1.f/2.f*a*t1*t1) / t1;  // also from same equations
+
+    // get interpolation
+    float x0 = x1 + v0*t0 + 1.f/2.f * a*t0*t0;
+
+    return x0;
+  }
+  
+  // interpolate with cubic function using 4 control points
+  // the error is guaranteed to be less then the first 3 control point quadric form already guarantees
+  // which is already gouverned by control point placement threshold.
+  float interpolate4(Position p0, Position p1, Position p2, Position p3, float t0) {
+    float x0 = interpolate(p1,p2,p3,t0);    
+    float t  = t0 / p0.dt;
+    return x0 * (1.f - t) + p0.x * t;
+  }
+
+  void update_axis(float dt, Axis& axis) {
+    uint8_t id = axis.id;
+    if(recording) {
+      // predict      
+      Position p1 = get(0,id), p2=get(-1,id), p3=get(-2,id);
+      float x0 = interpolate(p1,p2,p3,dt);
+      // compare
+      axis.ik_pred_err = x0 - (axis.ik_feedback - axis.ik_offset);
+      // on recording, insert new control point, if error is above threshold
+      if(id >= 3) // only record wrist and IK axes for now.
+        put(id, axis.ik_feedback - axis.ik_offset, abs(axis.ik_pred_err) > axis.ik_pred_thres);
+    }
+    // on playback, set manual axis input by interpolating three past and one future point
+    if(playback) {
+      Position p0 = get(1,id), p1 = get(0,id), p2=get(-1,id), p3=get(-2,id);    
+      axis.ik_manual = interpolate4(p0,p1,p2,p3,dt);
+    }
+  }
+
+  void update(float _dt, Axis* axes) {
+    if(recording || playback) {
+      for(uint8_t axis_id = 3; axis_id <= 6; axis_id++)
+        update_axis(dt, axes[axis_id]);
       dt += _dt;
+    }
 
     if(recording && need_cp) {
       need_cp = false;
@@ -75,8 +135,7 @@ struct Recorder {
       frames[2] = frames[3];
 
       dt = 0;
-      index++;      
-      if(index >= 1024) stop();      
+      index++;            
     }
         
     if(playback && dt > frames[3].dt / 1000.f) {

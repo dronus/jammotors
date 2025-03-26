@@ -25,7 +25,7 @@ struct Kinematic : public Params {
       cue_stop = false;
       recorder.stop();      
     }
-    recorder.update(dt);
+    recorder.update(dt,axes);
     cue_index  = recorder.index;
     cue_size   = recorder.size();
     running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
