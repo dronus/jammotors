@@ -112,26 +112,32 @@ struct Axis : public  Params {
     return x0;
   }
   
+  // interpolate with cubic function using 4 control points
+  // the error is guaranteed to be less then the first 3 control point quadric form already guarantees
+  // which is already gouverned by control point placement threshold.
+  float interpolate4(float t0) {
+    float x0 = interpolate(t0);
+    Position p1 = recorder.get(1,id);
+    float t  = t0 / p1.dt;
+
+    return x0 * (1.f - t) + p1.x * t;
+  }
+
   void predict(float dt) {
 
-    // predict
-    float x0 = interpolate(recorder.dt);
-    // compare
-    ik_pred_err = x0 - (ik_feedback - ik_offset); 
-    
-    // on recording, insert new control point, if error is above threshold
-    
-    if(recorder.recording && id >= 3) // only record wrist and IK axes for now.
-      recorder.put(id, ik_feedback - ik_offset, abs(ik_pred_err) > ik_pred_thres);
-      
-    if(recorder.recording && abs(ik_pred_err) > ik_pred_thres) {
-            
-      Serial.printf("New IK CP #%d on axis %d : %.5g after %.5g s (error was %.5g) \n", recorder.index, id, recorder.get(0,id).x, recorder.get(0,id).dt, ik_pred_err);      
+    if(recorder.recording) {
+      // predict
+      float x0 = interpolate(recorder.dt);
+      // compare
+      ik_pred_err = x0 - (ik_feedback - ik_offset);
+      // on recording, insert new control point, if error is above threshold
+      if(id >= 3) // only record wrist and IK axes for now.
+        recorder.put(id, ik_feedback - ik_offset, abs(ik_pred_err) > ik_pred_thres);
     }
     
-    // on playback, set manual axis input and advance on need
+    // on playback, set manual axis input by interpolating three past and one future point
     if(recorder.playback)
-      ik_manual = x0;
+      ik_manual = interpolate4(recorder.dt);
   }
 };
 

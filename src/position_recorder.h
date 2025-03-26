@@ -69,24 +69,24 @@ struct Recorder {
       // file.seek(index * sizeof(Frame));
       file.write((uint8_t*)&frames[3], sizeof(Frame));
       //Serial.printf("IK CP written: idx: %d dt: %.5g file pos: %d \n", index, frames[3].dt / 1000.f, file.position());
-      
+
       frames[0] = frames[1];
       frames[1] = frames[2];
       frames[2] = frames[3];
-      
+
       dt = 0;
       index++;      
       if(index >= 1024) stop();      
     }
         
-    if(playback && dt > 0) {
+    if(playback && dt > frames[3].dt / 1000.f) {
+      dt -= frames[3].dt / 1000.f;
       frames[0] = frames[1];
       frames[1] = frames[2];
-      // file.seek((index) * sizeof(Frame));
-      file.read((uint8_t*)&frames[2], sizeof(Frame));
-      //dt = 0;
-      dt -= frames[2].dt / 1000.f;
+      frames[2] = frames[3];
+      file.read((uint8_t*)&frames[3], sizeof(Frame));
       //Serial.printf("IK CP read: idx: %d dt: %.5g file pos: %d \n", index, dt, file.position());
+
       index++;
       if(index >= size()) stop();
     }
