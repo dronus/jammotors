@@ -41,21 +41,7 @@ struct Axis : public  Params {
   
   Axis() { id = next_id++;}  // assign unique id
   
-  float compute_max_vel(float dx_target, float v0, float a_max, float vel_k) {
-
-    // compute time to stop under maximal decelleration
-    float dt = abs(v0) / a_max;
-
-    // compute distance travelled under maximal decelleration
-    float dx = 1.f / 2.f * a_max * dt * dt;
-    
-    if(dx >= abs(dx_target)) // we need to brake.
-      return 0.f;
-    else // we need to accelerate, cruise or dampen close to target.
-      return vel_k * dx_target;
-  }
-
-  float update(float dt, float vel_max, float acc_max, float vel_k) {
+  float update(float dt, float vel_max, float acc_max, float vel_k, float crawl_thres, float crawl_vel) {
   
     // add external inputs
     ik_input += ik_manual + ik_offset + ik_hid_in * ik_hid_a + ik_ext_in;
@@ -68,10 +54,21 @@ struct Axis : public  Params {
 
     if(dt == 0 || isnan(ik_input)) return ik_pos;
 
+    // compute distance to target
     float dx = ik_input - ik_pos;
-    float v_target = compute_max_vel(dx, vel, acc_max, vel_k);
-    v_target = min( v_target,  vel_max * 1.f);
-    v_target = max( v_target, -vel_max * 1.f);
+    
+     // compute desired spped.     
+    float dt_max = abs(vel) / acc_max; // time to stop under maximal decelleration    
+    float dx_max = 1.f / 2.f * acc_max * dt_max * dt_max; // distance travelled under maximal decelleration    
+    float v_target;
+    if(dx_max >= abs(dx)) // we need to brake.
+      v_target =  0.f;
+    else // we need to accelerate, cruise or dampen close to target.
+      v_target = vel_k * dx;
+    // limit to range
+    float active_vel_max = abs(dx) > crawl_thres ? crawl_vel : vel_max;
+    v_target = min( v_target,  active_vel_max);
+    v_target = max( v_target, -active_vel_max);
 
     float acc = ( v_target - vel ) / dt;
     acc = min( acc,  acc_max);

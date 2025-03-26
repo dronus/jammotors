@@ -10,6 +10,8 @@ struct Kinematic : public Params {
   P_float (ik_length_a,true,    0,  1000, 330);
   P_float (ik_length_b,true,    0,  1000, 390);
   P_float (ik_vel_max,true,    0,  10000,  500);
+  P_float (ik_crawl_thres,true,    0,  10000, 10000);
+  P_float (ik_crawl_vel,  true,    0,  10000, 10000);
   P_float (ik_vel_k  ,true,    0,   1000,  100);
   P_float (ik_acc_max,true,    0, 100000, 5000);
   P_bool    (cue_stop, false,false);
@@ -27,8 +29,10 @@ struct Kinematic : public Params {
     cue_index  = recorder.index;
     cue_size   = recorder.size();
     running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
+    
     for(uint8_t i=0; i<7; i++)
-      axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k);
+      axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k, ik_crawl_thres, ik_crawl_vel);
+
     channels[3].ik_target = channels[3].pos_a * axes[3].ik_pos;
     
     float x     = axes[4].ik_pos;
