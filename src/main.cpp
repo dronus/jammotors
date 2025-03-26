@@ -264,7 +264,7 @@ size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
 
 // WebSocket "status" API to send current status
 void send_status() {
-  size_t len = 4096;
+  size_t len = 2048;
   char buffer[len];
   size_t written = writeAllParamsToBuffer(buffer, false);
   if(written >= len) Serial.printf("DEBUG send_status BUFFER OVERFLOW! bytes: %d \n", written ); 
@@ -409,14 +409,12 @@ void setup()
 
   // http "config" API to query persistent configuration
   httpServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
     // send global configuration Params
-    size_t len = 8192;
+    size_t len = 4096;
     char buffer[len];
     size_t written = writeAllParamsToBuffer(buffer, true);
-    Serial.printf("DEBUG /config repsonse bytes %d\n", written );
-    response->print(buffer);
-    request->send(response);
+    Serial.printf("DEBUG /config repsonse bytes %d\n", written );    
+    request->send(200, "text/html", buffer);
   });
 
   // websocket "set" API to set and apply values
@@ -508,7 +506,7 @@ void loop()
   if(status.send_status) {
     // status.nvs_free = prefs.freeEntries();
     status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
-    // status.ram_free = esp_get_free_heap_size();
+    status.ram_free = esp_get_minimum_free_heap_size();
     status.send_status = 0;
     send_status();
   }
