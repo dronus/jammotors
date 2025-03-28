@@ -93,8 +93,9 @@ struct Recorder {
   // which is already gouverned by control point placement threshold.
   float interpolate4(Position p0, Position p1, Position p2, Position p3, float t0) {
     float x0 = interpolate(p1,p2,p3,t0);    
-    float t  = t0 / p0.dt;
-    return x0 * (1.f - t) + p0.x * t;
+    float dxdt = ( p0.x - interpolate(p1,p2,p3,p0.dt) ) / p0.dt;
+    
+    return x0 + dxdt * t0;
   }
 
   void update_axis(float dt, Axis& axis) {
