@@ -117,7 +117,7 @@ struct Recorder {
     }
   }
 
-  void update(float _dt, Axis* axes) {
+  void update(float _dt, std::vector<Axis>& axes) {
     if(recording || playback) {
       for(uint8_t axis_id = 3; axis_id <= 6; axis_id++)
         update_axis(dt, axes[axis_id]);

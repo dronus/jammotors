@@ -38,7 +38,6 @@
 #include <ArtnetnodeWifi.h>
 #include <Preferences.h>
 
-const uint8_t max_channels = 4;
 const uint32_t statusLedPin = 2;
 const float pi = 3.1415926f;
 
@@ -73,11 +72,12 @@ Kinematic kinematic;
 
 int homing = 0;
 
-Channel channels[max_channels];
+const uint8_t max_channels = 4;
+std::vector<Channel> channels(max_channels);
 const uint8_t max_axes = 7;
-Axis axes[max_axes];
+std::vector<Axis> axes(max_axes);
 const uint8_t max_cues = 4;
-Cue cues[max_cues];
+std::vector<Cue> cues(max_cues);
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -215,7 +215,7 @@ void setFromWs(char* key_value)  {
   // Serial.printf("Set %s %s\n",key,value_str);
 
   // handle persistent per-channel parameters
-  for(uint8_t channel_id = 0; channel_id < max_channels; channel_id++)
+  for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
     setParam(&channels[channel_id], channel_id, key, value_str);
   
   // check for global parameters
@@ -224,11 +224,11 @@ void setFromWs(char* key_value)  {
   setParam(&midi_picker, -1,  key, value_str);
 
   // check for axes parameters
-  for(uint8_t i=0; i<max_axes; i++)
+  for(uint8_t i=0; i<axes.size(); i++)
     setParam(&axes[i], i,  key, value_str);
 
   // check for cue parameters
-  for(uint8_t i=0; i<max_cues; i++)
+  for(uint8_t i=0; i<cues.size(); i++)
     setParam(&cues[i], i,  key, value_str);
 };
 
@@ -246,19 +246,19 @@ void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t ind
     }
 }
 
-template <typename Type> void writeParamsArrayToBuffer (char*& ptr, Type params[], uint8_t len,  bool persistent) {
-  for(int8_t i=0; i<len; i++)
+template <typename Type> void writeParamsArrayToBuffer (char*& ptr, std::vector<Type>& params, bool persistent) {
+  for(int8_t i=0; i<params.size(); i++)
     writeParamsToBuffer(ptr, params[i], persistent, i );
 }
 
 size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
-  writeParamsArrayToBuffer(ptr, channels, max_channels, persistent);
+  writeParamsArrayToBuffer(ptr, channels, persistent);
   writeParamsToBuffer(ptr, kinematic, persistent);
   writeParamsToBuffer(ptr, status, persistent);
   writeParamsToBuffer(ptr, midi_picker, persistent);
-  writeParamsArrayToBuffer(ptr, axes, max_axes, persistent);
-  writeParamsArrayToBuffer(ptr, cues, max_cues, persistent);
+  writeParamsArrayToBuffer(ptr, axes, persistent);
+  writeParamsArrayToBuffer(ptr, cues, persistent);
   return ptr - buffer;
 }
 
@@ -276,11 +276,11 @@ void send_osc() {
   if(!status.osc_out_port)
     return;
   // send current position of all axes as OSC MIDI message, if configured
-  for(uint8_t i=0; i<max_axes; i++)
-    if(axes[i].ik_midi_cc) {
-      float pos = (axes[i].ik_feedback - axes[i].ik_offset) / (float)axes[i].ik_midi_a * 128.f;
+  for(Axis& axis : axes)
+    if(axis.ik_midi_cc) {
+      float pos = (axis.ik_feedback - axis.ik_offset) / (float)axis.ik_midi_a * 128.f;
       pos = max(0.f,min(127.f,pos));
-      int32_t midi_data = (0xB0<<24) + (axes[i].ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
+      int32_t midi_data = (0xB0<<24) + (axis.ik_midi_cc<<16) + (((uint8_t)pos)<<8); // - 2**32
       oscUdp.sendInt("/midi",midi_data);
     }
     
@@ -326,7 +326,7 @@ void setup()
 {
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
-  digitalWrite(statusLedPin,LOW);
+  digitalWrite(statusLedPin,HIGH);
 
   Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
@@ -350,16 +350,16 @@ void setup()
   readPrefs(&kinematic);
   readPrefs(&midi_picker);
 
-  for(uint8_t channel_id = 0; channel_id<max_channels; channel_id++) {
+  for(uint8_t channel_id = 0; channel_id<channels.size(); channel_id++) {
     Channel& channel = channels[channel_id];
     // read preferences
     readPrefs(&channel,channel_id);
     // initialize
     channel.init();
   }
-  for(uint8_t axis_id = 0; axis_id<max_axes; axis_id++)
+  for(uint8_t axis_id = 0; axis_id<axes.size(); axis_id++)
     readPrefs(&axes[axis_id],axis_id);
-  for(uint8_t cue_id = 0; cue_id<max_cues; cue_id++)
+  for(uint8_t cue_id = 0; cue_id<cues.size(); cue_id++)
     readPrefs(&cues[cue_id],cue_id);
 
   // try to connect configured WiFi AP. If not possible, back up 
@@ -439,7 +439,7 @@ void setup()
 
   // start ArtnetNode
   artnetnode.setArtDmxCallback([](uint16_t universe, uint16_t length, uint8_t sequence, uint8_t* data){
-    for(uint8_t i=0; i<max_axes; i++)
+    for(uint8_t i=0; i<axes.size(); i++)
       if(axes[i].ik_dmx_ch && axes[i].ik_dmx_ch <= length)
         axes[i].ik_ext_in = axes[i].ik_dmx_a / 255.f * (float)data[axes[i].ik_dmx_ch-1];
   });
@@ -476,7 +476,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
       midi_picker.pick(midi[1]);
     }
     if(type == 0xB0) {// CC change
-      for(uint8_t i=0; i<max_axes; i++)
+      for(uint8_t i=0; i<axes.size(); i++)
         if(axes[i].ik_midi_cc == midi[1])
           axes[i].ik_ext_in = axes[i].ik_midi_a / 128.f * midi[2];
     }
@@ -498,7 +498,7 @@ void loop()
   oscUdp.onOscMessageReceived( oscMessageParser );
   ws.cleanupClients();
   
-  for(uint8_t i=0; i<max_cues; i++)
+  for(uint8_t i=0; i<cues.size(); i++)
     cues[i].update(&setFromWs);
 
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;

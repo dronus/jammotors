@@ -11,20 +11,20 @@ const uint8_t MASTER_CAN_ID = 0x00;
 void check_alerts();
 
 struct DriverCybergear;
-DriverCybergear* can_handlers[max_channels];
+std::vector<DriverCybergear*> can_handlers;
+
 struct DriverCybergear : public Driver{
   XiaomiCyberGearDriver cybergear;
   uint8_t can_id;
   float torque = 0.f, last_torque_limit = 0.f;
   
   DriverCybergear(uint8_t _can_id) : cybergear(_can_id,MASTER_CAN_ID), can_id(_can_id){
-    for(uint8_t i=0; i<max_channels; i++)
-      if(!can_handlers[i]) {
-        can_handlers[i]=this;
-        break;
-      }
+    can_handlers.push_back(this);    
   }
-  virtual ~DriverCybergear() {cybergear.stop_motor();};
+  virtual ~DriverCybergear() {
+    cybergear.stop_motor();
+    can_handlers.erase(std::find(can_handlers.begin(),can_handlers.end(),this));
+  };
 
   void init(Channel& c) {
     // initialize CyberGear on CAN bus

@@ -20,7 +20,7 @@ struct Kinematic : public Params {
   P_uint8_t(running_cue,false,0,255,0);
   P_end;
 
-  void update(float dt, Axis* axes, Channel* channels) {
+  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
     if(cue_stop) {
       cue_stop = false;
       recorder.stop();      
@@ -73,7 +73,7 @@ struct Kinematic : public Params {
     y_out =  x_in * sinf(alpha) + y_in * cosf(alpha);
   }
 
-  float update_feedback(Channel* channels, Axis* axes) {
+  float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) {
 
     for(uint8_t i=0; i<=3; i++) 
       axes[i].ik_feedback = channels[i].position / (float)channels[i].ik_a;
