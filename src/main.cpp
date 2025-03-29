@@ -169,8 +169,8 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 
     Serial.print(prefs_name);Serial.print(" ");
     
-    if(p->desc->type == P_STRING) {    
-      String val = readPrefsString(prefs_name,p->desc->defString->c_str());
+    if(p->desc->type == P_STRING ) {
+      String val = readPrefsString(prefs_name,p->getString().c_str());
       Serial.print(val);  
       p->set(std::string(val.c_str()));
     } else if (prefs.isKey(prefs_name)){
