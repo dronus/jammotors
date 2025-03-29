@@ -68,8 +68,6 @@ class
 Descriptor {
 public:
   const ParamType type;
-
-  const uint32_t count;
   const char* name;
   bool persist;
   float min,max,def;
@@ -79,17 +77,9 @@ class Param {
 public:
   const Descriptor* desc;
 
-  Param(const Descriptor* _desc) : desc(_desc) {
-    if(_desc->type != P_STRING) {
-      // fill default values
-      for(uint32_t i=0; i<_desc->count; i++)
-        set(_desc->def,i);
-    }
-  }
-
   Param* next() {
     // skip the Param struct and size of data described by it
-    uintptr_t rawPtr = (uintptr_t)this + sizeof(Param) + param_sizes[desc->type] * desc->count;
+    uintptr_t rawPtr = (uintptr_t)this + sizeof(Param) + param_sizes[desc->type];
     // round to next 4 byte border to handle struct padding
     uintptr_t max_padding = sizeof(rawPtr) - 1;
     Param * ptr = (Param*)((rawPtr + max_padding) & ~max_padding);
@@ -150,31 +140,31 @@ public:
 } __attribute__ ((aligned (4)));
 
 #define P_bool(name,persist,def) \
-  static constexpr const Descriptor name##_desc{P_UINT8_T, 1, #name, persist, 0, 1, def}; Param name##_param{&name##_desc}; uint8_t name = def
+  static constexpr const Descriptor name##_desc{P_UINT8_T, #name, persist, 0, 1, def}; Param name##_param{&name##_desc}; uint8_t name = def
 
 #define P_int8_t(name,persist,min,max,def) \
-  static constexpr const Descriptor  name##_desc{P_INT8_T, 1, #name, persist, min, max, def}; Param name##_param{&name##_desc}; int8_t name = def
+  static constexpr const Descriptor  name##_desc{P_INT8_T, #name, persist, min, max, def}; Param name##_param{&name##_desc}; int8_t name = def
 
 #define P_uint8_t(name,persist,min,max,def) \
-  static constexpr const Descriptor  name##_desc{P_UINT8_T, 1, #name, persist, min, max, def}; Param name##_param{&name##_desc}; uint8_t name = def
+  static constexpr const Descriptor  name##_desc{P_UINT8_T, #name, persist, min, max, def}; Param name##_param{&name##_desc}; uint8_t name = def
 
 #define P_uint16_t(name,persist,min,max,def) \
-  static constexpr const Descriptor  name##_desc{P_UINT16_T, 1, #name, persist, min,max,def}; Param name##_param{&name##_desc}; uint16_t name = def
+  static constexpr const Descriptor  name##_desc{P_UINT16_T, #name, persist, min,max,def}; Param name##_param{&name##_desc}; uint16_t name = def
 
 #define P_int32_t(name,persist,min,max,def) \
-  static constexpr const Descriptor  name##_desc{P_INT32_T, 1, #name,persist,min,max,def}; Param name##_param{&name##_desc}; int32_t name = def
+  static constexpr const Descriptor  name##_desc{P_INT32_T, #name,persist,min,max,def}; Param name##_param{&name##_desc}; int32_t name = def
 
 #define P_uint32_t(name,persist,min,max,def) \
-  static constexpr const Descriptor  name##_desc{P_UINT32_T, 1, #name,persist,min,max,def}; Param name##_param{&name##_desc}; int32_t name = def
+  static constexpr const Descriptor  name##_desc{P_UINT32_T, #name,persist,min,max,def}; Param name##_param{&name##_desc}; int32_t name = def
 
 #define P_float(name,persist,min,max,def) \
- static constexpr const Descriptor  name##_desc{P_FLOAT, 1, #name,persist,min,max,def}; Param name##_param{&name##_desc}; float name = def
+ static constexpr const Descriptor  name##_desc{P_FLOAT, #name,persist,min,max,def}; Param name##_param{&name##_desc}; float name = def
 
 #define P_string(name,persist,defString) \
-  static constexpr const Descriptor  name##_desc{P_STRING, 1, #name,persist,0,0,0}; Param name##_param{&name##_desc}; std::string name = defString
+  static constexpr const Descriptor  name##_desc{P_STRING, #name,persist,0,0,0}; Param name##_param{&name##_desc}; std::string name = defString
 
 #define P_end \
-  static constexpr const Descriptor _p_end_desc{P_END, 1, "_p_end_desc", false}; Param _p_end_param{&_p_end_desc}
+  static constexpr const Descriptor _p_end_desc{P_END, "_p_end_desc", false}; Param _p_end_param{&_p_end_desc}
 
 class Params {
 public:
