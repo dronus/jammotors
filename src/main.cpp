@@ -77,7 +77,7 @@ std::vector<Channel> channels(max_channels);
 const uint8_t max_axes = 7;
 std::vector<Axis> axes(max_axes);
 const uint8_t max_cues = 4;
-std::vector<Cue> cues(max_cues);
+std::vector<Cue> cues; // cant initialize here, static alloc crashes for Arduino ESP32 framework, if std::string is used with Param. 
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -326,7 +326,7 @@ void setup()
 {
   // status LED, start off and turn on once initalisation is complete.
   pinMode(statusLedPin,OUTPUT);
-  digitalWrite(statusLedPin,HIGH);
+  digitalWrite(statusLedPin,LOW);
 
   Serial.begin(115200);
   Serial.println("NF Motor - WiFi ArtNet stepper motor driver with web interface");
@@ -359,8 +359,11 @@ void setup()
   }
   for(uint8_t axis_id = 0; axis_id<axes.size(); axis_id++)
     readPrefs(&axes[axis_id],axis_id);
-  for(uint8_t cue_id = 0; cue_id<cues.size(); cue_id++)
+
+  for(uint8_t cue_id = 0; cue_id<max_cues; cue_id++) {
+    cues.push_back(Cue()); // cant initialize statically, see comment at definition.
     readPrefs(&cues[cue_id],cue_id);
+  }
 
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
