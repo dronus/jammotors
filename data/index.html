@@ -7,17 +7,24 @@ table { display: inline-block; vertical-align: top }
 input, button {margin: 1px}
 h2 input { width: 1em;}
 input { max-width: 8em;}
-input[type="number"] { width: 5em; text-align: right;}
+input[type="number"] { width: 5em; text-align: right; font-family: monospace;}
 h2 {text-align: center;}
-h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
+h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}  
+body:not([mode=""]) tr {display:none;}
+body[mode="recorder"] tr.recorder {display:table-row;}   
+
 /*td:not(:first-child) { max-width: 5.5em; overflow: visible; } */
 </style>
 
-<button onclick="set_channels('enabled',1)">enable all</button>
-<button onclick="set_channels('enabled',0)">disable all</button>
-<button onclick="set_channels('reset_zero',1)">set zero all</button>
-<br>
+<a href="#">All</a> <a href="#recorder">Record / Playback</a>   <br>
+
+
 <table id=channels>
+  <tr><td>Collective</td><td colspan=5>
+    <button onclick="set_channels('enabled',1)">enable all</button>
+    <button onclick="set_channels('enabled',0)">disable all</button>
+    <button onclick="set_channels('reset_zero',1)">set zero all</button>
+  </td></tr>
   <tr><td><h2>Channel</h2></td> <td><h2>0</h2></td> <td><h2>1</h2></td> <td><h2>2</h2></td> <td><h2>3</h2></td> </tr>
   <tr><td>Driver</td><td>
     <select id=driver_id_0>
@@ -55,7 +62,7 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>Uptime (s)</td><td><input id="uptime"  type="number" disabled></td></tr>
   <tr><td>Cycle time </td><td>   <input type=number id=dt disbled> </td></tr>
   <tr><td>Worst cycle </td><td>  <input type=number id=dt_max disbled> </td></tr>
-  <tr><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
+  <tr class="recorder"><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
   <tr><td>FS free</td><td>  <input type=number id=fs_free disbled> </td></tr>
   <tr><td>RAM free</td><td>  <input type=number id=ram_free disbled> </td></tr>
   <tr><td>Bus Voltage Divider</td><td><input id="voltage_divider" type="number"></td></tr>  
@@ -70,28 +77,28 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td>Reconnect / reset</td><td><button id="reset">RESET</button> </td></tr>
   
-  <tr><td><h4>IK Setup</h4></td></tr>  
-  <tr><td>IK Offset (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
+  <tr><td><h4>IK Setup</h4></td></tr>
+  
+  ik_crawl_thres
+  <tr><td>IK Shoulder Offset (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
-  <tr><td>Max. velocity</td><td>     <input type=number id=ik_vel_max > </td></tr>
+  <tr><td>Max. velocity (mm/s)</td><td>     <input type=number id=ik_vel_max > </td></tr>
   <tr><td>Velocity control K</td><td>     <input type=number id=ik_vel_k > </td></tr>
-  <tr><td>Max. acceleration</td><td>     <input type=number id=ik_acc_max > </td></tr>
+  <tr><td>Max. acceleration (mm/s²)</td><td>     <input type=number id=ik_acc_max > </td></tr>
+  <tr><td>IK Crawl Thesh. (mm)</td><td><input type=number id=ik_crawl_thres > </td></tr>
+  <tr><td>IK Crawl Vel. (mm/s)</td><td><input type=number id=ik_crawl_vel ></td></tr>
+  
   <tr><td>MIDI base note</td><td>     <input type=number id=midi_base_note > </td></tr>  
   <tr><td>MIDI move (s)</td><td>     <input type=number id=midi_move_dur > </td></tr>
   <tr><td>MIDI pick (s)</td><td>     <input type=number id=midi_pick_dur > </td></tr>
   
-  <tr><td><h4>Motion Recording</h4></td></tr>   
-  <tr><td>Running cue</td><td><input id="running_cue"  type="number" disabled></td></tr>
-  <tr><td>Rec/Play Index</td><td><input id="cue_index"  type="number" disabled></td></tr>
-  <tr><td>Rec/Play Length</td><td><input id="cue_size"  type="number" disabled></td></tr>
-  <tr><td>Stop record/play</td><td><button id="cue_stop">STOP</button> </td></tr>
 </table>
 
 <table id=global_config>
   <tr><td><h3>Inputs</h3></td></tr>
-  <tr><td>Axis</td><td>0</td><td>1</td><td>2</td><td>3</td><td>X</td><td>Y</td><td>Z</td></tr>
-  <tr><td>Offset </td><td> <input type=number id=ik_offset_0 > </td></tr>
+  <tr class="recorder"><td>Axis</td><td>0</td><td>1</td><td>2</td><td>3</td><td>X</td><td>Y</td><td>Z</td></tr>
+  <tr class="recorder"><td>Offset </td><td> <input type=number id=ik_offset_0 > </td></tr>
   <tr><td><h4>Oscillate</h4></td></tr>
   <tr><td>Frequency (Hz) </td><td>  <input type=number id=ik_osc_f_0 > </td></tr>
   <tr><td>Amplitude </td><td>  <input type=number id=ik_osc_a_0> </td></tr>
@@ -104,15 +111,24 @@ h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}
   <tr><td>DMX Channel </td><td> <input type=number id=ik_dmx_ch_0> </td></tr>
   <tr><td>DMX Scale </td><td>     <input type=number id=ik_dmx_a_0 > </td></tr>  
   <tr><td><h4>MIDI / HID Input</h4></td></tr>
+  <tr class="recorder"><td>Manual / Recorded</td><td><input type=number id=ik_manual_0 ></td></tr>    
 </table>
 
 <canvas id=stats width="256" height="800"> </canvas>
 
 <table id=cues>
-  <tr><td><h3>Cues</h3></td></tr>
-  <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
-  <tr><td>Record</td><td><button id="cue_record_0">RECORD</button> </td></tr>
-  <tr><td>Play  </td><td><button id="cue_play_0">PLAY</button> </td></tr>
+  <tr class="recorder"><td colspan=4><h4>Motion Recording</h4></td></tr>   
+  <tr class="recorder">
+  <td>Recorder</td><td colspan=4>
+    <button id="cue_stop">STOP</button>
+    Current Cue <input id="running_cue" type="number" disabled>
+    at Index <input id="cue_index"  type="number" disabled>
+    of <input id="cue_size"  type="number" disabled>
+  </td></tr>  
+  <tr class="recorder"><td><h3>Cues</h3></td></tr>
+  <tr class="recorder"><td>Name   </td><td> <input id=cue_name_0> </td></tr>
+  <tr class="recorder"><td>Record</td><td><button id="cue_record_0">RECORD</button> </td></tr>
+  <tr class="recorder"><td>Play  </td><td><button id="cue_play_0">PLAY</button> </td></tr>
   <tr><td>Run Script</td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Cursor</td><td> <input type=number id=cue_cursor_0> </td></tr>  
   <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  
@@ -174,7 +190,7 @@ function show(id, value) {
       tr_el.append(label_td_el);
       document.getElementById('global_config').append(tr_el);
     }
-
+    tr_el.classList.add('tr_'+key);
     // add editor cell
     if(prototype) // if we already have an editor for this key, clone it
       el = prototype.cloneNode(true);
@@ -295,6 +311,10 @@ let open_socket=async function()
 }
 open_socket();
 
-
+let set_hash = () => {
+  document.body.setAttribute('mode',document.location.hash.substr(1));
+}
+window.onhashchange = set_hash;
+set_hash();
 </script>
 
