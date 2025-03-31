@@ -1,12 +1,15 @@
-
+<!DOCTYPE HTML>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
 
 <style>
 * { font-family: sans; }
-div, table {  display: table; margin: 3px; padding: 5px; border-radius: 5px; background-color: rgba(0,0,0,0.2); }
+div, table {  display: table; margin: 2px; padding: 3px; border-radius: 5px; background-color: rgba(0,0,0,0.2); }
 table { display: inline-block; vertical-align: top }
-input, button {margin: 1px}
+input, select, button {margin: 1px; padding: 1px; border: none; max-width: 7em; }
 h2 input { width: 1em;}
-input { max-width: 8em;}
+input { max-width: 7em;}
 input[type="number"] { width: 5em; text-align: right; font-family: monospace;}
 h2 {text-align: center;}
 h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}  
@@ -77,15 +80,13 @@ body[mode="recorder"] tr.recorder {display:table-row;}
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td>Reconnect / reset</td><td><button id="reset">RESET</button> </td></tr>
   
-  <tr><td><h4>IK Setup</h4></td></tr>
-  
-  ik_crawl_thres
-  <tr><td>IK Shoulder Offset (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
+  <tr><td><h4>IK Setup</h4></td></tr>  
+  <tr><td>IK Shoulder Offs. (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
   <tr><td>Max. velocity (mm/s)</td><td>     <input type=number id=ik_vel_max > </td></tr>
   <tr><td>Velocity control K</td><td>     <input type=number id=ik_vel_k > </td></tr>
-  <tr><td>Max. acceleration (mm/s²)</td><td>     <input type=number id=ik_acc_max > </td></tr>
+  <tr><td>Max. accel.  (mm/s²)</td><td>     <input type=number id=ik_acc_max > </td></tr>
   <tr><td>IK Crawl Thesh. (mm)</td><td><input type=number id=ik_crawl_thres > </td></tr>
   <tr><td>IK Crawl Vel. (mm/s)</td><td><input type=number id=ik_crawl_vel ></td></tr>
   
