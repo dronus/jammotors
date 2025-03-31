@@ -77,7 +77,7 @@ std::vector<Channel> channels(max_channels);
 const uint8_t max_axes = 7;
 std::vector<Axis> axes(max_axes);
 const uint8_t max_cues = 4;
-std::vector<Cue> cues; // cant initialize here, static alloc crashes for Arduino ESP32 framework, if std::string is used with Param. 
+std::vector<Cue> cues; 
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -123,40 +123,8 @@ void switchWifiAp() {
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
 
-// read string from either FS file if existent or NVM Preferences otherwise
-String readPrefsString(const char* prefs_name, const char* default_str) {
-  String val = default_str;
-  char file_name[32];
-  snprintf(file_name, sizeof(file_name), "/%s", prefs_name);
-  if(LittleFS.exists(file_name)) {
-    File file = LittleFS.open(file_name, FILE_READ);
-    val = file.readString();
-    file.close();
-    Serial.printf("Prefs read from  %s\n",file_name);
-  }else if (prefs.isKey(prefs_name))
-    val = prefs.getString(prefs_name);
-  return val;
-}
-
-// save a string to either NVM Prefs, if small enough or FS file if larger.
-void writePrefsString(const char* prefs_name, const char* value_str) {
-  char file_name[32];
-  snprintf(file_name, sizeof(file_name), "/%s", prefs_name);
-  if(strlen(value_str) < 64) {
-    prefs.putString(prefs_name, value_str);
-    if(LittleFS.exists(file_name)) {
-      LittleFS.remove(file_name);
-      Serial.printf("Prefs file removed %s\n",file_name);
-    }
-  } else {
-    File f = LittleFS.open(file_name, FILE_WRITE, true);
-    f.print(value_str);
-    f.close();
-    Serial.printf("Prefs written to %s\n",file_name);
-  }
-}
-
-void readPrefs(Params* params, int16_t channel_id = -1) {
+bool readPrefs(Params* params, int16_t channel_id = -1) {
+  bool got_some = false;
   for(Param* p = params->getParams(); p; p=p->next()) {
     
     if(!p->desc->persist) continue;
@@ -168,18 +136,24 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
     Serial.print(prefs_name);Serial.print(" ");
-    
-    if(p->desc->type == P_STRING ) {
-      String val = readPrefsString(prefs_name,p->getString().c_str());
-      Serial.print(val);  
-      p->set(std::string(val.c_str()));
-    } else if (prefs.isKey(prefs_name)){
-      float val = prefs.getFloat(prefs_name);
-      Serial.print(val);
-      p->set(val);
+
+    if (prefs.isKey(prefs_name)){      
+      if(p->desc->type == P_STRING) {
+        String val = prefs.getString(prefs_name); // readPrefsString(prefs_name,p->getString().c_str());
+        Serial.print(val);
+        p->set(std::string(val.c_str()));
+      } else { 
+        float val = prefs.getFloat(prefs_name);
+        Serial.print(val);
+        p->set(val);
+      }
+      got_some = true;
     }
+
     Serial.println();
   }
+  
+  return got_some;
 }
 
 // set the parameter matching "key" from the given Params struct to "value".
@@ -198,7 +172,7 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
       p->set(value_str);
       if(p->desc->persist)
         if(p->desc->type == P_STRING)
-          writePrefsString(prefs_name,value_str);
+          prefs.putString(prefs_name,value_str);
         else
           prefs.putFloat(prefs_name, p->get());
     }
@@ -360,9 +334,9 @@ void setup()
   for(uint8_t axis_id = 0; axis_id<axes.size(); axis_id++)
     readPrefs(&axes[axis_id],axis_id);
 
-  for(uint8_t cue_id = 0; cue_id<max_cues; cue_id++) {
-    cues.push_back(Cue()); // cant initialize statically, see comment at definition.
-    readPrefs(&cues[cue_id],cue_id);
+  for(uint8_t cue_id = 0, got_one = true; cue_id<max_cues && got_one; cue_id++) {
+    cues.push_back(Cue());
+    got_one = readPrefs(&cues[cue_id],cue_id);
   }
 
   // try to connect configured WiFi AP. If not possible, back up 

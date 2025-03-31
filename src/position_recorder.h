@@ -58,13 +58,7 @@ struct Recorder {
     frames[3].x[axis-3] = x;
     need_cp = need_cp || is_control;
   }
-  
-  void update_axis(float dt, uint8_t id) {
-    
-  
-  }
-  
-   
+     
   // inter- or extrapolate position at t0 using matching three known points with a quadratic polynomial. 
   // works both as an extrapolating predictor (t0 > 0) and an interpolating approximator (t < 0).
   // control points are defined by their delta positions, and are aligned at t = 0 going into the t-negative direction.
