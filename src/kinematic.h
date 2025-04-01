@@ -9,46 +9,38 @@ struct Kinematic : public Params {
   P_float (ik_length_c,true,    0,  1000,  90);
   P_float (ik_length_a,true,    0,  1000, 330);
   P_float (ik_length_b,true,    0,  1000, 390);
+
   P_float (ik_vel_max,true,    0,  10000,  500);
-  P_float (ik_crawl_thres,true,    0,  10000, 10000);
-  P_float (ik_crawl_vel,  true,    0,  10000, 10000);
   P_float (ik_vel_k  ,true,    0,   1000,  100);
   P_float (ik_acc_max,true,    0, 100000, 5000);
+  P_float (chan_vel_max,true,    0, 100000,  500);
+  P_float (chan_vel_k  ,true,    0,   1000,  100);
+  P_float (chan_acc_max,true,    0, 100000, 5000);
+
+  P_float (ik_crawl_thres,true,    0,  10000, 10000);
+  P_float (ik_crawl_vel,  true,    0,  10000, 10000);
   P_bool    (cue_stop, false,false);
   P_uint32_t(cue_index, false,0,1024,0);
   P_uint32_t(cue_size, false,0,1024,0);
   P_uint8_t(running_cue,false,0,255,0);
   P_end;
 
-  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
-    if(cue_stop) {
-      cue_stop = false;
-      recorder.stop();      
-    }
-    recorder.update(dt,axes);
-    cue_index  = recorder.index;
-    cue_size   = recorder.size();
-    running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
-    
-    for(uint8_t i=0; i<7; i++)
-      axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k, ik_crawl_thres, ik_crawl_vel);
-
-    channels[3].ik_target = channels[3].pos_a * axes[3].ik_pos;
-    
+  
+  void update_ik(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
     float x     = axes[4].ik_pos;
     float y     = axes[5].ik_pos;
     float z     = axes[6].ik_pos;
 
     // define shoulder - target angle
-    if(y == 0 && x == 0) return; // if y and z are zero, just keep last angles.
-   
     // define xy-plane origin - shoulder - target triangle
     float rot = sqrtf(x*x+y*y); // span origin to target in xy-plane
+    if(rot < 5.f) return; // if x and y are too close to zero, just keep last angles.
     float ros = ik_length_c; // shoulder offset
     if(rot < ros) return; // target to close
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
-    float alpha = atan2f(x,y) - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
-    channels[0].ik_target = channels[0].ik_a * alpha  / (float)pi + channels[0].pos_a * axes[0].ik_pos;
+    float alpha =  atan2f(x,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
+    //alpha = fmodf(alpha + 1.5f * (float)pi, (float)pi) - 0.5f * (float)pi;
+    axes[0].ik_ik_in = channels[0].ik_a * alpha  / (float)pi;
 
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
@@ -62,8 +54,30 @@ struct Kinematic : public Params {
     // get shoulder angle by triangle cosine equation and atan offset
     if(z==0 && rst==0) return; // point undefined.
     float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
-    channels[1].ik_target = channels[1].ik_a * beta  / (float)pi  + channels[1].pos_a * axes[1].ik_pos;
-    channels[2].ik_target = channels[2].ik_a * gamma / (float)pi  + channels[2].pos_a * axes[2].ik_pos;
+    axes[1].ik_ik_in = channels[1].ik_a * beta  / (float)pi;
+    axes[2].ik_ik_in = channels[2].ik_a * gamma / (float)pi;
+  }
+
+  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
+    if(cue_stop) {
+      cue_stop = false;
+      recorder.stop();      
+    }
+    recorder.update(dt,axes);
+    cue_index  = recorder.index;
+    cue_size   = recorder.size();
+    running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
+    
+    // update inverse kinematics (cartesian) axes
+    for(uint8_t i=4; i<=6; i++)
+      axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k, ik_crawl_thres, ik_crawl_vel);
+
+    // inverse kinematics : map cartesian to angular axes
+    update_ik(dt,axes,channels);
+    
+    // update actual output (angular) axes
+    for(uint8_t i=0; i<=3; i++)
+      channels[i].ik_target = axes[i].update(dt,chan_vel_max, chan_acc_max,chan_vel_k, ik_crawl_thres, ik_crawl_vel);       
   }
 
   void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
@@ -78,9 +92,9 @@ struct Kinematic : public Params {
     for(uint8_t i=0; i<=3; i++) 
       axes[i].ik_feedback = channels[i].position / (float)channels[i].ik_a;
 
-    float alpha = ( channels[0].position - channels[0].pos_a * axes[0].ik_offset ) / (float)channels[0].ik_a * (float)pi;
-    float beta  = ( channels[1].position - channels[1].pos_a * axes[1].ik_offset ) / (float)channels[1].ik_a * (float)pi;
-    float gamma = ( channels[2].position - channels[2].pos_a * axes[2].ik_offset ) / (float)channels[2].ik_a * (float)pi;
+    float alpha = ( channels[0].position - axes[0].ik_offset ) / (float)channels[0].ik_a * (float)pi;
+    float beta  = ( channels[1].position - axes[1].ik_offset ) / (float)channels[1].ik_a * (float)pi;
+    float gamma = ( channels[2].position - axes[2].ik_offset ) / (float)channels[2].ik_a * (float)pi;
     
     float x=0, y=0, z=0;
     z += ik_length_b;

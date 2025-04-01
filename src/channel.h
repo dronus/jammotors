@@ -11,7 +11,6 @@ struct Channel : public Params {
   P_float (pos_kp, true,0, 500000, 1000);
   P_float (pos_kd, true,0, 5000, 100);
   P_float (ik_a  ,true,-100000, 100000, 0);
-  P_float (pos_a ,true,-100000, 100000, 1);
   P_float (pos_min ,true,-100000, 100000, -1000);
   P_float (pos_max ,true,-100000, 100000,  1000);
   P_uint8_t (enabled   ,false,0,1,0);
