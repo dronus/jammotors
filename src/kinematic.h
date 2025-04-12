@@ -13,9 +13,9 @@ struct Kinematic : public Params {
   P_float (ik_vel_max,true,    0,  10000,  500);
   P_float (ik_vel_k  ,true,    0,   1000,  100);
   P_float (ik_acc_max,true,    0, 100000, 5000);
-  P_float (chan_vel_max,true,    0, 100000,  500);
+  P_float (chan_vel_max,true,    0, 1E9f,  500);
   P_float (chan_vel_k  ,true,    0,   1000,  100);
-  P_float (chan_acc_max,true,    0, 100000, 5000);
+  P_float (chan_acc_max,true,    0, 1E9f, 5000);
 
   P_float (ik_crawl_thres,true,    0,  10000, 10000);
   P_float (ik_crawl_vel,  true,    0,  10000, 10000);
