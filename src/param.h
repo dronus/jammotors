@@ -170,7 +170,7 @@ class Params {
 public:
   uint32_t _p_dummy; // fix for some platforms that do not assign a valid address to empty Params struct instances.
   Param* getParams() {
-    return (Param*) (((void*)this)+sizeof(_p_dummy));
+    return (Param*) (((char*)this)+sizeof(_p_dummy));
   };
   static Param* getParam(void* field) {
     return (Param*)((char*)field - sizeof(Param));

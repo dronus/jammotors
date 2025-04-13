@@ -68,7 +68,7 @@ WiFiUDP udp;
 unsigned int oscInPort = 8888;
 MicroOscUdp<1024> oscUdp(&udp);
 MidiPicker midi_picker;
-Kinematic kinematic;
+MotionController controller;
 
 int homing = 0;
 
@@ -194,7 +194,8 @@ void setFromWs(char* key_value)  {
   
   // check for global parameters
   setParam(&status, -1,  key, value_str);
-  setParam(&kinematic, -1,  key, value_str);
+  setParam(&controller, -1,  key, value_str);
+  setParam(controller.kinematic, -1,  key, value_str);
   setParam(&midi_picker, -1,  key, value_str);
 
   // check for axes parameters
@@ -228,7 +229,8 @@ template <typename Type> void writeParamsArrayToBuffer (char*& ptr, std::vector<
 size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
   writeParamsArrayToBuffer(ptr, channels, persistent);
-  writeParamsToBuffer(ptr, kinematic, persistent);
+  writeParamsToBuffer(ptr, controller, persistent);
+  writeParamsToBuffer(ptr, *(controller.kinematic), persistent);
   writeParamsToBuffer(ptr, status, persistent);
   writeParamsToBuffer(ptr, midi_picker, persistent);
   writeParamsArrayToBuffer(ptr, axes, persistent);
@@ -286,9 +288,8 @@ void motionLoop(void* dummy){
     for(Axis& axis : axes)
       axis.ik_input = 0;
     midi_picker.update(axes,status.dt);
-    kinematic.update(status.dt, axes, channels);
-    status.ik_error = kinematic.update_feedback(channels, axes); // to get IK error
-
+    status.ik_error = controller.update(status.dt, axes, channels);
+    
     for(Channel& c : channels)
       c.update(status.dt);
     
@@ -321,7 +322,8 @@ void setup()
   Serial.println("Prefs started.");
   
   readPrefs(&status);
-  readPrefs(&kinematic);
+  readPrefs(&controller);
+  readPrefs(controller.kinematic);
   readPrefs(&midi_picker);
 
   for(uint8_t channel_id = 0; channel_id<channels.size(); channel_id++) {
