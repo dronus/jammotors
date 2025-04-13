@@ -83,7 +83,12 @@ body[mode="recorder"] tr.recorder {display:table-row;}
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td>Reconnect / reset</td><td><button id="reset">RESET</button> </td></tr>
   
-  <tr><td><h4>IK Setup</h4></td></tr>  
+  <tr><td><h4>Kinematic Setup</h4></td></tr>  
+  <tr><td>Kinematic mode</td><td>
+    <select id=kinematic_id>
+      <option value=0>None</option>
+      <option value=1>3-axis cartesian for arm</option>      
+  </select> </td></tr>
   <tr><td>IK Shoulder Offs. (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>

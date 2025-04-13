@@ -89,6 +89,13 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   return NULL;
 }
 
+Kinematic* createKinematic(uint8_t kinematic_id) {
+  Serial.printf("Create kinematic %d \n",kinematic_id);
+  if(kinematic_id == 1) return new KinematicArmCartesian();
+  
+  return NULL;
+}
+
 struct Status : public Params {
   P_float (dt, false, 0, 0, 0);
   P_float (dt_max, false, 0, 0, 0);
@@ -195,7 +202,7 @@ void setFromWs(char* key_value)  {
   // check for global parameters
   setParam(&status, -1,  key, value_str);
   setParam(&controller, -1,  key, value_str);
-  setParam(controller.kinematic, -1,  key, value_str);
+  if(controller.kinematic) setParam(controller.kinematic, -1,  key, value_str);
   setParam(&midi_picker, -1,  key, value_str);
 
   // check for axes parameters
@@ -230,7 +237,7 @@ size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
   writeParamsArrayToBuffer(ptr, channels, persistent);
   writeParamsToBuffer(ptr, controller, persistent);
-  writeParamsToBuffer(ptr, *(controller.kinematic), persistent);
+  if(controller.kinematic) writeParamsToBuffer(ptr, *(controller.kinematic), persistent);
   writeParamsToBuffer(ptr, status, persistent);
   writeParamsToBuffer(ptr, midi_picker, persistent);
   writeParamsArrayToBuffer(ptr, axes, persistent);
@@ -323,7 +330,7 @@ void setup()
   
   readPrefs(&status);
   readPrefs(&controller);
-  readPrefs(controller.kinematic);
+  if(controller.kinematic) readPrefs(controller.kinematic);
   readPrefs(&midi_picker);
 
   for(uint8_t channel_id = 0; channel_id<channels.size(); channel_id++) {

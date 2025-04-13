@@ -11,8 +11,9 @@ struct Kinematic  : public Params {
   virtual float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) = 0;
 };
 
+Kinematic* createKinematic(uint8_t kinematic_id);
 
-struct CartesianKinematic : public Kinematic  {
+struct KinematicArmCartesian : public Kinematic  {
   P_float (ik_length_c,true,    0,  1000,  90);
   P_float (ik_length_a,true,    0,  1000, 330);
   P_float (ik_length_b,true,    0,  1000, 390);
@@ -86,7 +87,6 @@ struct CartesianKinematic : public Kinematic  {
   }
 };
 
-
 // Controller: update position of all axes:
 // - the virtual kinematic input axes, which provide input to the kinematic model
 // - the output axes, which provide position to the output channels
@@ -104,10 +104,12 @@ struct MotionController : public Params {
   P_uint32_t(cue_index, false,0,1024,0);
   P_uint32_t(cue_size, false,0,1024,0);
   P_uint8_t(running_cue,false,0,255,0);
+  P_uint8_t(kinematic_id,true,0,1,1);
   P_end;
   
-  Kinematic* kinematic = new CartesianKinematic();
-  
+  uint8_t last_kinematic_id=0;  
+  Kinematic* kinematic = NULL;
+    
   // update kinematic input and output axes and write output to channels.  
   // return "error" in the kinematics underlying unit (eg. mm for cartesian inverse kinematics)
   float update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
@@ -124,15 +126,20 @@ struct MotionController : public Params {
     for(uint8_t i=0; i<=2; i++)
       axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k, ik_crawl_thres, ik_crawl_vel);
 
-    // inverse kinematics : map cartesian to angular axes
-    kinematic->update(dt,axes,channels);
+    // kinematics : map virtual kinematic axes to channel-tied output axes
+    if(kinematic_id != last_kinematic_id) {
+      if(kinematic) delete kinematic;
+      kinematic = createKinematic(kinematic_id);
+      last_kinematic_id = kinematic_id;
+    }
+    if(kinematic) kinematic->update(dt,axes,channels);
     
     // update actual output (angular) axes
     for(uint8_t i=0; i<channels.size(); i++)
       channels[i].ik_target = axes[i+3].update(dt,chan_vel_max, chan_acc_max,chan_vel_k, ik_crawl_thres, ik_crawl_vel);
       
     // update feedback
-    float error = kinematic->update_feedback(channels, axes);
+    float error = kinematic ? kinematic->update_feedback(channels, axes) : 0.;
     return error;
   }
 };
