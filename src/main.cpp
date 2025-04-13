@@ -72,9 +72,9 @@ Kinematic kinematic;
 
 int homing = 0;
 
-const uint8_t max_channels = 4;
+const uint8_t max_channels = 5;
 std::vector<Channel> channels(max_channels);
-const uint8_t max_axes = 7;
+const uint8_t max_axes = max_channels + 3;
 std::vector<Axis> axes(max_axes);
 const uint8_t max_cues = 4;
 std::vector<Cue> cues; 
@@ -203,7 +203,7 @@ void setFromWs(char* key_value)  {
 
   // check for cue parameters
   for(uint8_t i=0; i<cues.size(); i++)
-    setParam(&cues[i], i,  key, value_str);
+    setParam(&cues[i], i,  key, value_str);  
 };
 
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
@@ -259,7 +259,7 @@ void send_osc() {
     }
     
   // send current IK position as native OSC message  
-  uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+  uint8_t axe_idxs[] = {0,1,2,6}; // x,y,z,a
   float osc_pos[4];
   for(uint8_t i=0; i<4; i++)
     osc_pos[i] = axes[axe_idxs[i]].ik_feedback - axes[axe_idxs[i]].ik_offset;
@@ -460,7 +460,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     Serial.println();
   }
   if ( receivedOscMessage.checkOscAddress("/xyza") ) {
-    uint8_t axe_idxs[] = {4,5,6,3}; // x,y,z,a
+    uint8_t axe_idxs[] = {0,1,2,6}; // x,y,z,a
     for(uint8_t i=0; i<4; i++)
       axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
   }

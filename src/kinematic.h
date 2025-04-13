@@ -27,9 +27,9 @@ struct Kinematic : public Params {
 
   
   void update_ik(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
-    float x     = axes[4].ik_pos;
-    float y     = axes[5].ik_pos;
-    float z     = axes[6].ik_pos;
+    float x     = axes[0].ik_pos;
+    float y     = axes[1].ik_pos;
+    float z     = axes[2].ik_pos;
 
     // define shoulder - target angle
     // define xy-plane origin - shoulder - target triangle
@@ -40,7 +40,7 @@ struct Kinematic : public Params {
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
     float alpha =  atan2f(x,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
     //alpha = fmodf(alpha + 1.5f * (float)pi, (float)pi) - 0.5f * (float)pi;
-    axes[0].ik_ik_in = channels[0].ik_a * alpha  / (float)pi;
+    axes[3].ik_ik_in = channels[0].ik_a * alpha  / (float)pi;
 
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
@@ -54,8 +54,8 @@ struct Kinematic : public Params {
     // get shoulder angle by triangle cosine equation and atan offset
     if(z==0 && rst==0) return; // point undefined.
     float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
-    axes[1].ik_ik_in = channels[1].ik_a * beta  / (float)pi;
-    axes[2].ik_ik_in = channels[2].ik_a * gamma / (float)pi;
+    axes[4].ik_ik_in = channels[1].ik_a * beta  / (float)pi;
+    axes[5].ik_ik_in = channels[2].ik_a * gamma / (float)pi;
   }
 
   void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
@@ -69,15 +69,15 @@ struct Kinematic : public Params {
     running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
     
     // update inverse kinematics (cartesian) axes
-    for(uint8_t i=4; i<=6; i++)
+    for(uint8_t i=0; i<=2; i++)
       axes[i].update(dt,ik_vel_max, ik_acc_max,ik_vel_k, ik_crawl_thres, ik_crawl_vel);
 
     // inverse kinematics : map cartesian to angular axes
     update_ik(dt,axes,channels);
     
     // update actual output (angular) axes
-    for(uint8_t i=0; i<=3; i++)
-      channels[i].ik_target = axes[i].update(dt,chan_vel_max, chan_acc_max,chan_vel_k, ik_crawl_thres, ik_crawl_vel);       
+    for(uint8_t i=0; i<channels.size(); i++)
+      channels[i].ik_target = axes[i+3].update(dt,chan_vel_max, chan_acc_max,chan_vel_k, ik_crawl_thres, ik_crawl_vel);       
   }
 
   void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {
@@ -89,12 +89,12 @@ struct Kinematic : public Params {
 
   float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) {
 
-    for(uint8_t i=0; i<=3; i++) 
-      axes[i].ik_feedback = channels[i].position / (float)channels[i].ik_a;
+    for(uint8_t i=0; i<channels.size(); i++) 
+      axes[i+3].ik_feedback = channels[i].position / (float)channels[i].ik_a;
 
-    float alpha = ( channels[0].position - axes[0].ik_offset ) / (float)channels[0].ik_a * (float)pi;
-    float beta  = ( channels[1].position - axes[1].ik_offset ) / (float)channels[1].ik_a * (float)pi;
-    float gamma = ( channels[2].position - axes[2].ik_offset ) / (float)channels[2].ik_a * (float)pi;
+    float alpha = ( channels[0].position - axes[3].ik_offset ) / (float)channels[0].ik_a * (float)pi;
+    float beta  = ( channels[1].position - axes[4].ik_offset ) / (float)channels[1].ik_a * (float)pi;
+    float gamma = ( channels[2].position - axes[5].ik_offset ) / (float)channels[2].ik_a * (float)pi;
     
     float x=0, y=0, z=0;
     z += ik_length_b;
@@ -104,14 +104,14 @@ struct Kinematic : public Params {
     x += ik_length_c;
     rot(y,x,alpha,y,x);
 
-    axes[4].ik_feedback = x;
-    axes[5].ik_feedback = y;
-    axes[6].ik_feedback = z;
+    axes[0].ik_feedback = x;
+    axes[1].ik_feedback = y;
+    axes[2].ik_feedback = z;
     
     // compute ik_error from x,y,z only.
-    float dx = axes[4].ik_pos - x;
-    float dy = axes[5].ik_pos - y;
-    float dz = axes[6].ik_pos - z;
+    float dx = axes[0].ik_pos - x;
+    float dy = axes[1].ik_pos - y;
+    float dz = axes[2].ik_pos - z;
     return sqrtf( dx*dx + dy*dy + dz*dz );
   }
 };

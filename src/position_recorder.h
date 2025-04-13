@@ -22,6 +22,7 @@ struct Recorder {
     char filename[32];
     sprintf(filename, "/cue_motion_%d", current_cue_id);
     file = LittleFS.open(filename, for_record ? "w" : "r", true); 
+    Serial.printf("Opening  %s for %s\n", filename, for_record ? "recording" : "playback");
   }
   
   void record(uint8_t cue_id) {
@@ -46,16 +47,18 @@ struct Recorder {
     if(file) file.close();    
   }
   
-  Position get(size_t index, uint8_t axis) {
+  Position get(size_t index, uint8_t axis_id) {
     Frame& f = frames[index + 2]; 
-    // only IK and wrist angle axes 3-6 are stored.
-    return { f.dt / 1000.f, axis >=3 ? (float)f.x[axis-3] : 0.f};
+    // only IK 0-2 and wrist angle axes 6 are stored.
+    if (axis_id == 6 ) axis_id=3; // fourth axis is wrist axis
+    return { f.dt / 1000.f, axis_id <= 3 ? (float)f.x[axis_id] : 0.f};
   }
   
   bool need_cp = false;
-  void put(uint8_t axis, float x, bool is_control) {
-    if(axis<3) return; // only IK and wrist angle axes 3-6 are stored.
-    frames[3].x[axis-3] = x;
+  void put(uint8_t axis_id, float x, bool is_control) {
+    if (axis_id == 6 ) axis_id=3; // fourth axis is wrist axis
+    if (axis_id > 3 ) return;  
+    frames[3].x[axis_id] = x;
     need_cp = need_cp || is_control;
   }
      
@@ -101,8 +104,7 @@ struct Recorder {
       // compare
       axis.ik_pred_err = x0 - (axis.ik_feedback - axis.ik_offset);
       // on recording, insert new control point, if error is above threshold
-      if(id >= 3) // only record wrist and IK axes for now.
-        put(id, axis.ik_feedback - axis.ik_offset, abs(axis.ik_pred_err) > axis.ik_pred_thres);
+      put(id, axis.ik_feedback - axis.ik_offset, abs(axis.ik_pred_err) > axis.ik_pred_thres);
     }
     // on playback, set manual axis input by interpolating three past and one future point
     if(playback) {
@@ -113,8 +115,10 @@ struct Recorder {
 
   void update(float _dt, std::vector<Axis>& axes) {
     if(recording || playback) {
-      for(uint8_t axis_id = 3; axis_id <= 6; axis_id++)
-        update_axis(dt, axes[axis_id]);
+      update_axis(dt, axes[0]); // x
+      update_axis(dt, axes[1]); // y
+      update_axis(dt, axes[2]); // z
+      update_axis(dt, axes[6]); // wrist
       dt += _dt;
     }
 

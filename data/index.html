@@ -104,7 +104,7 @@ body[mode="recorder"] tr.recorder {display:table-row;}
 
 <table id=global_config>
   <tr><td><h3>Inputs</h3></td></tr>
-  <tr class="recorder"><td>Axis</td><td>0</td><td>1</td><td>2</td><td>3</td><td>X</td><td>Y</td><td>Z</td></tr>
+  <tr class="recorder"><td>Axis</td><td>X</td><td>Y</td><td>Z</td><td>A</td><td>B</td><td>C</td><td>D</td></tr>
   <tr class="recorder"><td>Offset </td><td> <input type=number id=ik_offset_0 > </td></tr>
   <tr><td><h4>Oscillate</h4></td></tr>
   <tr><td>Frequency (Hz) </td><td>  <input type=number id=ik_osc_f_0 > </td></tr>
@@ -249,7 +249,7 @@ function show_all(data) {
   let plots = ["ik_target","ik_feedback","ik_pred_err"];
   ctx.fillStyle="#000000";
   ctx.fillRect(canvas.width-2,0,2,canvas.height);
-  for(let i=4; i<7; i++) {
+  for(let i of [0,1,2,6]) {
     let param1 = params.find(param => param[0] == plots[0]+'_'+i);
     let param2 = params.find(param => param[0] == plots[1]+'_'+i);
     let param3 = params.find(param => param[0] == plots[2]+'_'+i);
