@@ -165,7 +165,7 @@ bool readPrefs(Params* params, int16_t channel_id = -1) {
 }
 
 // set the parameter matching "key" from the given Params struct to "value".
-void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
+void setParam(Params* params, int16_t channel_id, char* key, char* value_str, bool dont_save = false) {
 
   for(Param* p = params->getParams(); p ; p = p->next()) {
 
@@ -178,7 +178,7 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
     if ( strcmp(prefs_name, key) == 0 ) {
       // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
       p->set(value_str);
-      if(p->desc->persist)
+      if(!dont_save && p->desc->persist)
         if(p->desc->type == P_STRING)
           prefs.putString(prefs_name,value_str);
         else
@@ -188,7 +188,7 @@ void setParam(Params* params, int16_t channel_id, char* key, char* value_str) {
 }
 
 // set single parameter from incoming key, value message.
-void setFromWs(char* key_value)  {
+void setFromWs(char* key_value, bool dont_save = false)  {
   // Serial.printf("Set %s\n",key_value);
   char* key       = key_value;
   char* value_str = strchr(key_value,' ');
@@ -198,21 +198,21 @@ void setFromWs(char* key_value)  {
 
   // handle persistent per-channel parameters
   for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
-    setParam(&channels[channel_id], channel_id, key, value_str);
+    setParam(&channels[channel_id], channel_id, key, value_str, dont_save);
   
   // check for global parameters
-  setParam(&status, -1,  key, value_str);
-  setParam(&controller, -1,  key, value_str);
-  if(controller.kinematic) setParam(controller.kinematic, -1,  key, value_str);
-  setParam(&midi_picker, -1,  key, value_str);
+  setParam(&status, -1,  key, value_str, dont_save);
+  setParam(&controller, -1,  key, value_str, dont_save);
+  if(controller.kinematic) setParam(controller.kinematic, -1,  key, value_str, dont_save);
+  setParam(&midi_picker, -1,  key, value_str, dont_save);
 
   // check for axes parameters
   for(uint8_t i=0; i<axes.size(); i++)
-    setParam(&axes[i], i,  key, value_str);
+    setParam(&axes[i], i,  key, value_str, dont_save);
 
   // check for cue parameters
   for(uint8_t i=0; i<cues.size(); i++)
-    setParam(&cues[i], i,  key, value_str);  
+    setParam(&cues[i], i,  key, value_str, dont_save);
 };
 
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
@@ -486,7 +486,7 @@ void loop()
   ws.cleanupClients();
   
   for(uint8_t i=0; i<cues.size(); i++)
-    cues[i].update(&setFromWs);
+    cues[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
 
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
