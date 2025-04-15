@@ -61,7 +61,7 @@ struct KinematicArmCartesian : public Kinematic  {
   float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) {
 
     for(uint8_t i=0; i<channels.size(); i++) 
-      axes[i+3].ik_feedback = channels[i].position / (float)channels[i].ik_a;
+      axes[i+3].ik_feedback = channels[i].position;
 
     float alpha = ( channels[0].position - axes[3].ik_offset ) / (float)channels[0].ik_a * (float)pi;
     float beta  = ( channels[1].position - axes[4].ik_offset ) / (float)channels[1].ik_a * (float)pi;
@@ -94,7 +94,7 @@ struct KinematicHand : public Kinematic  {
 
   void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
     float grab   = axes[0].ik_pos;
-    float tilt   = axes[1].ik_pos;    
+    float tilt   = axes[1].ik_pos;
     float finger_dx = ik_hand_w / 4;
     
     for(uint8_t finger_id=0; finger_id<5; finger_id++) {
@@ -124,10 +124,13 @@ struct MotionController : public Params {
   P_float (ik_crawl_thres,true,    0,  10000, 10000);
   P_float (ik_crawl_vel,  true,    0,  10000, 10000);
 
-  P_bool    (cue_stop, false,false);
-  P_uint32_t(cue_index, false,0,1024,0);
-  P_uint32_t(cue_size, false,0,1024,0);
-  P_uint8_t(running_cue,false,0,255,0);
+  P_bool    (rec_record, false,false);
+  P_bool    (rec_play,   false,false);
+  P_bool    (rec_stop, false,false);
+  P_uint8_t(rec_sequence, false,0,127,0);
+  P_uint32_t(rec_index, false,0,1024,0);
+  P_uint32_t(rec_size,   false,0,1024,0);
+
   P_uint8_t(kinematic_id,true,0,2,1);
   P_end;
   
@@ -137,14 +140,21 @@ struct MotionController : public Params {
   // update kinematic input and output axes and write output to channels.  
   // return "error" in the kinematics underlying unit (eg. mm for cartesian inverse kinematics)
   float update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
-    if(cue_stop) {
-      cue_stop = false;
+  
+    recorder.set_sequence(rec_sequence);
+    if(rec_stop) {
+      rec_stop = false;
       recorder.stop();      
+    } else if(rec_record) {
+      rec_record = false;
+      recorder.record();
+    } else if(rec_play) {
+      rec_play = false;
+      recorder.play();
     }
     recorder.update(dt,axes);
-    cue_index  = recorder.index;
-    cue_size   = recorder.size();
-    running_cue = (recorder.recording || recorder.playback) ? recorder.current_cue_id + 1 : 0;
+    rec_index = recorder.index;
+    rec_size   = recorder.size();
     
     // update kinematic input axes (eg. cartesian in case of inverse kinematics)
     for(uint8_t i=0; i<=2; i++)

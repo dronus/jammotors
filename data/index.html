@@ -106,6 +106,15 @@ body[mode="recorder"] tr.recorder {display:table-row;}
   <tr><td>MIDI move (s)</td><td>     <input type=number id=midi_move_dur > </td></tr>
   <tr><td>MIDI pick (s)</td><td>     <input type=number id=midi_pick_dur > </td></tr>
   
+  <tr class="recorder"><td colspan=2><h4>Motion Recording</h4></td></tr>
+  <tr class="recorder"><td>Sequence Nr.</td><td><input id="rec_sequence" type="number"></td></tr>  
+  <tr class="recorder"><td colspan=2>
+    <button id="rec_stop">STOP</button>
+    <button id="rec_record">REC</button>
+    <button id="rec_play">PLAY</button>
+  </td></tr>
+  <tr class="recorder"><td>Seq. index</td><td><input id="rec_index" type="number" disabled></td></tr>
+  <tr class="recorder"><td>Length</td><td><input id="rec_size" type="number" disabled></td></tr>
 </table>
 
 <table id=global_config>
@@ -129,19 +138,9 @@ body[mode="recorder"] tr.recorder {display:table-row;}
 
 <canvas id=stats width="256" height="800"> </canvas>
 
-<table id=cues>
-  <tr class="recorder"><td colspan=4><h4>Motion Recording</h4></td></tr>   
-  <tr class="recorder">
-  <td>Recorder</td><td colspan=4>
-    <button id="cue_stop">STOP</button>
-    Current Cue <input id="running_cue" type="number" disabled>
-    at Index <input id="cue_index"  type="number" disabled>
-    of <input id="cue_size"  type="number" disabled>
-  </td></tr>  
-  <tr class="recorder"><td><h3>Cues</h3></td></tr>
-  <tr class="recorder"><td>Name   </td><td> <input id=cue_name_0> </td></tr>
-  <tr class="recorder"><td>Record</td><td><button id="cue_record_0">RECORD</button> </td></tr>
-  <tr class="recorder"><td>Play  </td><td><button id="cue_play_0">PLAY</button> </td></tr>
+<table id=cues>  
+  <tr><td><h3>Cues</h3></td></tr>
+  <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
   <tr><td>Run Script</td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Cursor</td><td> <input type=number id=cue_cursor_0> </td></tr>  
   <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  

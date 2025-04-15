@@ -11,40 +11,45 @@ struct Frame {
 
 struct Recorder {
   File file;
-  uint8_t current_cue_id;
+  int8_t sequence_id = -1;
   bool recording = 0;
   bool playback  = 0;
   uint32_t index = 0;
   float dt = 0;  
   Frame frames[4];
   
-  void open(bool for_record) {    
+  void reopen() {
+    if(file) file.close();
     char filename[32];
-    sprintf(filename, "/cue_motion_%d", current_cue_id);
-    file = LittleFS.open(filename, for_record ? "w" : "r", true); 
-    Serial.printf("Opening  %s for %s\n", filename, for_record ? "recording" : "playback");
+    sprintf(filename, "/cue_motion_%d", sequence_id);
+    file = LittleFS.open(filename, recording ? "w" : "r", true);
+    Serial.printf("Opening  %s for %s\n", filename, recording ? "recording" : "playback");
+    dt = 0;
+    index = 0;
   }
   
-  void record(uint8_t cue_id) {
-    current_cue_id = cue_id;
-    stop();
-    open(true);
+  void set_sequence(uint8_t _sequence_id) {
+    if(_sequence_id == sequence_id || playback || recording) return;
+    sequence_id = _sequence_id;
+    reopen(); // open file now to provide a valid size() for the UI
+  }
+  
+  void record() {
+    playback = false;
     recording = true;
+    reopen(); // re-open to make sure file is opened with write mode
   }
 
-  void play(uint8_t cue_id) {
-    current_cue_id = cue_id;
-    stop();
-    open(false);
-    playback = true; 
+  void play() {
+    recording = false;
+    playback = true;
+    reopen(); // re-open make sure to start new
   }
-  
+
   void stop() {
     recording = false;
     playback = false;
-    dt = 0;
-    index = 0;
-    if(file) file.close();    
+    reopen(); // re-open to refesh size()
   }
   
   Position get(size_t index, uint8_t axis_id) {
