@@ -92,6 +92,7 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
 Kinematic* createKinematic(uint8_t kinematic_id) {
   Serial.printf("Create kinematic %d \n",kinematic_id);
   if(kinematic_id == 1) return new KinematicArmCartesian();
+  if(kinematic_id == 2) return new KinematicHand();
   
   return NULL;
 }

@@ -87,6 +87,30 @@ struct KinematicArmCartesian : public Kinematic  {
   }
 };
 
+struct KinematicHand : public Kinematic  {
+  P_float (ik_finger_l,true,  0, 1000,   90);
+  P_float (ik_hand_w,  true,  0, 1000,  100);  
+  P_end;
+
+  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
+    float grab   = axes[0].ik_pos;
+    float tilt   = axes[1].ik_pos;    
+    float finger_dx = ik_hand_w / 4;
+    
+    for(uint8_t finger_id=0; finger_id<5; finger_id++) {
+      float alpha = grab / ik_finger_l + (finger_id-2.f)/5.f * finger_dx / ik_finger_l * tilt / ik_hand_w;
+      axes[finger_id+3].ik_ik_in = channels[finger_id].ik_a * alpha;
+    }
+  }
+
+  // feedback is useless, as the hand uses non-feedback motors. just pass targets.
+  float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) {
+    for(uint8_t i=0; i<3; i++)
+      axes[i].ik_feedback = axes[i].ik_pos;    
+    return 0.f;
+  }
+};
+
 // Controller: update position of all axes:
 // - the virtual kinematic input axes, which provide input to the kinematic model
 // - the output axes, which provide position to the output channels
@@ -104,7 +128,7 @@ struct MotionController : public Params {
   P_uint32_t(cue_index, false,0,1024,0);
   P_uint32_t(cue_size, false,0,1024,0);
   P_uint8_t(running_cue,false,0,255,0);
-  P_uint8_t(kinematic_id,true,0,1,1);
+  P_uint8_t(kinematic_id,true,0,2,1);
   P_end;
   
   uint8_t last_kinematic_id=0;  
