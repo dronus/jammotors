@@ -73,9 +73,9 @@ MotionController controller;
 int homing = 0;
 
 const uint8_t max_channels = 5;
-std::vector<Channel> channels(max_channels);
+std::vector<Channel> channels(0);
 const uint8_t max_axes = max_channels + 3;
-std::vector<Axis> axes(max_axes);
+std::vector<Axis> axes(0);
 const uint8_t max_cues = 4;
 std::vector<Cue> cues; 
 
@@ -105,6 +105,7 @@ struct Status : public Params {
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
+  P_uint8_t (num_channels,true,1,5,max_channels);
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
@@ -334,6 +335,7 @@ void setup()
   if(controller.kinematic) readPrefs(controller.kinematic);
   readPrefs(&midi_picker);
 
+  channels.resize(status.num_channels);  
   for(uint8_t channel_id = 0; channel_id<channels.size(); channel_id++) {
     Channel& channel = channels[channel_id];
     // read preferences
@@ -341,6 +343,8 @@ void setup()
     // initialize
     channel.init();
   }
+  
+  axes.resize(status.num_channels+3);
   for(uint8_t axis_id = 0; axis_id<axes.size(); axis_id++)
     readPrefs(&axes[axis_id],axis_id);
 

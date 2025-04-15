@@ -254,19 +254,20 @@ function show_all(data) {
   let plots = ["ik_target","ik_feedback","ik_pred_err"];
   ctx.fillStyle="#000000";
   ctx.fillRect(canvas.width-2,0,2,canvas.height);
-  for(let i of [0,1,2,6]) {
-    let param1 = params.find(param => param[0] == plots[0]+'_'+i);
-    let param2 = params.find(param => param[0] == plots[1]+'_'+i);
-    let param3 = params.find(param => param[0] == plots[2]+'_'+i);
+  for(let i=0; i<4; i++) {
+    let p_i = [0,1,2,6][i];
+    let param1 = params.find(param => param[0] == plots[0]+'_'+p_i);
+    let param2 = params.find(param => param[0] == plots[1]+'_'+p_i);
+    let param3 = params.find(param => param[0] == plots[2]+'_'+p_i);
     if(!param1 || !param2) break;
     let y  = parseFloat(param1[1])/2000.; 
     let dy = parseFloat(param2[1])/2000. - y ;
     let dy2 = parseFloat(param3[1])/2000.;
     if(dy<0) y+=dy;
     ctx.fillStyle="#999999";
-    ctx.fillRect(canvas.width-2,canvas.height * ( y + (i-4) + 0.5) / 4, 2,1+Math.abs(canvas.height * dy / 4));
+    ctx.fillRect(canvas.width-2,canvas.height * ( y + i + 0.5) / 4, 2,1+Math.abs(canvas.height * dy / 4));
     ctx.fillStyle="#00FF0099";
-    ctx.fillRect(canvas.width-2,canvas.height * ( y + dy2 + (i-4) + 0.5) / 4, 2,2);
+    ctx.fillRect(canvas.width-2,canvas.height * ( y + dy2 + i + 0.5) / 4, 2,2);
   }
 }
 
