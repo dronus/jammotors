@@ -297,7 +297,7 @@ void motionLoop(void* dummy){
     for(Axis& axis : axes)
       axis.ik_input = 0;
     midi_picker.update(axes,status.dt);
-    status.ik_error = controller.update(status.dt, axes, channels);
+    status.ik_error = controller.update(status.dt, axes, channels,[](Params* params) -> void{ readPrefs(params); });
     
     for(Channel& c : channels)
       c.update(status.dt);
