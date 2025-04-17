@@ -19,6 +19,7 @@ struct Channel : public Params {
   P_float (target ,false,0,0,0);
   P_float (position ,false,0,0,0);
   P_float (torque ,false,0,0,0);
+  P_float (torque_in,false,-100000,100000,0);
   P_float (temperature ,false,0,0,0);
   P_uint8_t (set_can_id ,true,0,255,0);
   

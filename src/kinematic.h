@@ -17,13 +17,15 @@ struct KinematicArmCartesian : public Kinematic  {
   P_float (ik_length_c,true,    0,  1000,  90);
   P_float (ik_length_a,true,    0,  1000, 330);
   P_float (ik_length_b,true,    0,  1000, 390);
+  P_float (ik_mass_a,true, -100000,  100000,  0);
+  P_float (ik_mass_b,true, -100000,  100000,  0);
   P_end;
+ 
+  struct Vec3 {float x,y,z;};
 
-  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
-    float x     = axes[0].ik_pos;
-    float y     = axes[1].ik_pos;
-    float z     = axes[2].ik_pos;
-
+  void forward(float dt, std::vector<Channel>& channels, Vec3 in, Vec3& out) {
+    float x=in.x, y=in.y, z=in.z;
+    
     // define shoulder - target angle
     // define xy-plane origin - shoulder - target triangle
     float rot = sqrtf(x*x+y*y); // span origin to target in xy-plane
@@ -33,7 +35,7 @@ struct KinematicArmCartesian : public Kinematic  {
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
     float alpha =  atan2f(x,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
     //alpha = fmodf(alpha + 1.5f * (float)pi, (float)pi) - 0.5f * (float)pi;
-    axes[3].ik_ik_in = channels[0].ik_a * alpha  / (float)pi;
+    out.x = channels[0].ik_a * alpha  / (float)pi;
 
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
@@ -47,8 +49,28 @@ struct KinematicArmCartesian : public Kinematic  {
     // get shoulder angle by triangle cosine equation and atan offset
     if(z==0 && rst==0) return; // point undefined.
     float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
-    axes[4].ik_ik_in = channels[1].ik_a * beta  / (float)pi;
-    axes[5].ik_ik_in = channels[2].ik_a * gamma / (float)pi;
+    out.y = channels[1].ik_a * beta  / (float)pi;
+    out.z = channels[2].ik_a * gamma / (float)pi;
+  }
+
+  void update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels) {
+    float x=axes[0].ik_pos, y=axes[1].ik_pos, z=axes[2].ik_pos;
+    
+    // update position
+    Vec3 out = {axes[3].ik_ik_in, axes[4].ik_ik_in, axes[5].ik_ik_in}, out2 = out; // initialize out to last position, as IK may omit new values if invalid.
+    forward(dt, channels, {x,y,z}, out);
+    axes[3].ik_ik_in = out.x;
+    axes[4].ik_ik_in = out.y;
+    axes[5].ik_ik_in = out.z;
+    
+    // update static torque (gravity correction)
+    float dx = 1.;
+    forward(dt, channels, {x+dx,y,z}, out2); // get angular derivates in gravity direction (x)
+    float ik_torque_a = (ik_mass_a + ik_mass_b) * ik_length_a;
+    float ik_torque_b = ik_mass_b               * ik_length_b;
+    channels[0].torque_in = ik_torque_a * (out2.x-out.x)/abs(channels[0].ik_a);
+    channels[1].torque_in = ik_torque_a * (out2.y-out.y)/abs(channels[1].ik_a);
+    channels[2].torque_in = ik_torque_b * (out2.z-out.z)/abs(channels[2].ik_a);
   }
 
   void rot(float _x_in, float _y_in, float alpha, float& x_out, float& y_out) {

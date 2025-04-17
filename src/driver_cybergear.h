@@ -71,11 +71,12 @@ struct DriverCybergear : public Driver{
 
     // execute move
     if(torque > 0.f)
-      cybergear.send_motion_control({c.target/1000.f,0.f,0.f,c.pos_kp/1000.f,c.pos_kd/1000.f});
+      cybergear.send_motion_control({c.target/1000.f,0.f,c.torque_in, c.pos_kp/1000.f,c.pos_kd/1000.f});
 
     // check motor state (handle messages for all CyberGear motors)
     // also updates motor status data that can be relayed to wifi clients then.
     cybergear.request_status();
+    //delayMicroseconds(1000);
     check_alerts();
 
     XiaomiCyberGearStatus status = cybergear.get_status();
