@@ -1,17 +1,44 @@
 <!DOCTYPE HTML>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <link rel="shortcut icon" href="#">
 </head>
 
 <style>
-body{ background: #000; color: #fff;}
-a,a:visited{color: #fff;}
 * { font-family: sans; }
+a,a:visited{color: #fff;}
+body{ 
+  background: #000; 
+  color: #fff; 
+  display: flex;
+  flex-flow: column wrap;  
+  justify-content: flex-start;
+  align-items: flex-start;
+  align-content: flex-start;
+  height: 100vh;
+  padding: 1em;
+  padding-top: 2em;
+  margin: 0px;
+}
+div#header {  
+  position: fixed;
+  width: 100vw;
+  top: 0px;
+  background: #000;
+}
+div#header *{
+  margin: 1em;
+}
 div, table {  display: table; margin: 2px; padding: 3px; border-radius: 5px; background-color: rgba(255,255,255,0.2); }
 table { display: inline-block; vertical-align: top }
-input, select, button, textarea {margin: 1px; padding: 1px; border: none; max-width: 7em; background: #000; color: #fff;}
+input, select, button, textarea {margin: 1px; padding: 1px; border: none; border-radius: 5px; max-width: 7em; background: #000; color: #fff;}
+:is(input, select, button, textarea):focus { outline: 2px solid #fff; transform-origin: 50% 50%; transform: scale(1.6);}
 button {padding: 5px; border-radius: 10px; background: #444;}
 input:disabled {background: #111; color: #ccc;}
+textarea {height: 20em; min-width: 10em;}
+textarea#command {height: 2em; min-width: 20em;}
+textarea#output  {height: 20em; min-width: 20em;}
+tr:focus-within {background-color:rgba(255,255,255,0.1);}
 h2 input { width: 1em;}
 input { max-width: 7em;}
 input[type="number"] { width: 5em; text-align: right; font-family: monospace;}
@@ -19,12 +46,18 @@ h2 {text-align: center;}
 h2,h3,h4 {margin-top: 4px; margin-bottom: 2px}  
 body:not([mode=""]) tr {display:none;}
 body[mode="recorder"] tr.recorder {display:table-row;}   
-
+body[mode="recorder"] table:not(:has(tr.recorder)) { display: none;}
+canvas {border-radius: 5px; border: 2px solid #444;}
 /*td:not(:first-child) { max-width: 5.5em; overflow: visible; } */
 </style>
 
-<a href="#">All</a> <a href="#recorder">Record / Playback</a>   <br>
+<div id=offline style="position: fixed; left: 0; right: 0; top:0; bottom:0;  padding-top: 40vh; text-align: center; font-size: 1000%; background: #900; opacity: 85%;">
+	OFFLINE
+</div>
 
+<div id=header>
+  <a href="#">All</a> <a href="#recorder">Record / Playback</a>   <br>
+</div>
 
 <table id=channels>
   <tr><td>Collective</td><td colspan=5>
@@ -33,6 +66,23 @@ body[mode="recorder"] tr.recorder {display:table-row;}
     <button onclick="set_channels('reset_zero',1)">set zero all</button>
   </td></tr>
   <tr><td><h2>Channel</h2></td> <td><h2>0</h2></td> <td><h2>1</h2></td> <td><h2>2</h2></td> <td><h2>3</h2></td> </tr>
+  <tr><td>Actual </td><td> <input type=number id=position_0 disabled> </td></tr>
+  <tr><td>Reset origin</td><td><button id="reset_zero_0">SET ZERO</button> </td></tr>
+  <tr><td>Target </td><td> <input type=number id=target_0 disabled> </td></tr>
+  <tr><td>Torque </td><td> <input type=number id=torque_0 disabled> </td></tr>
+  <tr><td>Temp </td><td> <input type=number id=temperature_0 disabled> </td></tr>
+  <tr><td>Alarm</td><td> <input type=number id=alarm_0 disabled></td></tr>
+  <tr><td>Enabled </td><td> <input type=checkbox id=enabled_0> </td></tr>
+  <tr><td>Enable on Power </td><td> <input type=checkbox id=poweron_en_0> </td></tr>    
+  <tr><td>IK Scale ( per turn ) </td><td>  <input type=number id=ik_a_0> </td></tr>
+  <tr><td><h3>Limits</h3></td></tr>
+  <tr><td>Min. Pos</td><td>  <input type=number id=pos_min_0> </td></tr>
+  <tr><td>Max. Pos</td><td>  <input type=number id=pos_max_0> </td></tr>
+  <tr><td>Speed </td><td>     <input type=number id=speed_0 > </td></tr>
+  <tr><td>Acc. / Torque </td><td>     <input type=number id=accel_0 > </td></tr>
+  <tr><td>Pos kp </td><td>     <input type=number id=pos_kp_0 > </td></tr>
+  <tr><td>Pos kd </td><td>     <input type=number id=pos_kd_0 > </td></tr>  
+  <tr><td><h3>Misc</h3></td></tr>  
   <tr><td>Driver</td><td>
     <select id=driver_id_0>
       <option value=0>Disabled</option>
@@ -41,53 +91,39 @@ body[mode="recorder"] tr.recorder {display:table-row;}
       <option value=3>PWM</option>
       <option value=4>CyberGear</option>
     </select> </td></tr>
-  <tr><td>on Pin / Address  </td><td> <input type=number id=pin_id_0></td>
-  <tr><td>Actual </td><td> <input type=number id=position_0 disabled> </td></tr>
-  <tr><td>Target </td><td> <input type=number id=target_0 disabled> </td></tr>
-  <tr><td>Torque </td><td> <input type=number id=torque_0 disabled> </td></tr>
-  <tr><td>Temp   </td><td> <input type=number id=temperature_0 disabled> </td></tr>
-  <tr><td>Alarm  (reset by disable) </td><td> <input type=number id=alarm_0 disabled></td></tr>
-  <tr><td>Enabled </td><td> <input type=checkbox id=enabled_0> </td></tr>
-  <tr><td>Enable on Power On </td><td> <input type=checkbox id=poweron_en_0> </td></tr>    
-  <tr><td>IK Scale ( units per full turn ) </td><td>  <input type=number id=ik_a_0> </td></tr>
-  <tr><td><h3>Motion Limits</h3></td></tr>
-  <tr><td>Min. Pos</td><td>  <input type=number id=pos_min_0> </td></tr>
-  <tr><td>Max. Pos</td><td>  <input type=number id=pos_max_0> </td></tr>
-  <tr><td>Speed </td><td>     <input type=number id=speed_0 > </td></tr>
-  <tr><td>Accel / Torque </td><td>     <input type=number id=accel_0 > </td></tr>
-  <tr><td>Pos kp </td><td>     <input type=number id=pos_kp_0 > </td></tr>
-  <tr><td>Pos kd </td><td>     <input type=number id=pos_kd_0 > </td></tr>
-  <tr><td>Reset position to 0</td><td><button id="reset_zero_0">SET ZERO</button> </td></tr>
-  <tr><td><h3>Misc</h3></td></tr>
+  <tr><td>on Pin / Address  </td><td> <input type=number id=pin_id_0></td>  
   <tr><td>Write new CAN ID </td><td> <input type=number type=number id=set_can_id_0> </td></tr>
 </table>
 
 <table>
-  <tr><td colspan=2><h2>Global</h2></td></tr>
-  <tr><td colspan=2><h3>Status</h3></td></tr>
+  <tr><td colspan=2><h2>Status</h2></td></tr>
   <tr><td>Uptime (s)</td><td><input id="uptime"  type="number" disabled></td></tr>
   <tr><td>Cycle time </td><td>   <input type=number id=dt disbled> </td></tr>
   <tr><td>Worst cycle </td><td>  <input type=number id=dt_max disbled> </td></tr>
-  <tr class="recorder"><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
-  <tr><td>FS free</td><td>  <input type=number id=fs_free disbled> </td></tr>
+  <tr><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
+  <tr class="recorder"><td>FS free</td><td>  <input type=number id=fs_free disbled> </td></tr>
   <tr><td>RAM free</td><td>  <input type=number id=ram_free disbled> </td></tr>
   <tr><td>Bus Voltage Divider</td><td><input id="voltage_divider" type="number"></td></tr>  
   <tr><td>Bus Voltage</td><td><input id="vbus" type="number" disabled></td></tr>
   <tr><td>IK Position error </td><td>  <input type=number id=ik_error disbled>  </td></tr>
   <tr style="display:none"><td>send_status</td><td><input id="send_status" type="number"></td></tr>
-<tr><td><h3>Network</h3> </td></tr>
+  
+</table>
+<table>
+  <tr><td><h2>Network</h2> </td></tr>
   <tr><td>Name </td><td>  <input id=name> </td></tr>
   <tr><td>WiFi SSID </td><td> <input id=ssid> </td></tr>
   <tr><td>WiFi PSK </td><td>  <input type=password id=psk > </td></tr>
   <tr><td>OSC Output IP</td><td>  <input type=text id=osc_out_ip > </td></tr>
   <tr><td>OSC Output Port</td><td>  <input type=number id=osc_out_port > </td></tr>
   <tr><td>Reconnect / reset</td><td><button id="reset">RESET</button> </td></tr>
-  
-  <tr><td><h4>Kinematic Setup</h4></td></tr>  
-  <tr><td>Kinematic mode</td><td>
+</table>
+<table>  
+  <tr><td><h2>Kinematic</h2></td></tr>  
+  <tr><td>Mode</td><td>
     <select id=kinematic_id>
       <option value=0>None</option>
-      <option value=1>3-axis cartesian for arm</option>
+      <option value=1>cartesian IK for arm</option>
       <option value=2>grab and height for hand</option>
   </select> </td></tr>
   <tr><td>IK Shoulder Offs. (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
@@ -99,14 +135,15 @@ body[mode="recorder"] tr.recorder {display:table-row;}
   <tr><td>Max. ang. velocity (u/s)</td><td>     <input type=number id=chan_vel_max > </td></tr>
   <tr><td>Angular Velocity K</td><td>     <input type=number id=chan_vel_k > </td></tr>
   <tr><td>Max. ang. velocity (u/s²)</td><td>     <input type=number id=chan_acc_max > </td></tr>
-<tr><td>Crawl Thesh. (mm)</td><td><input type=number id=ik_crawl_thres > </td></tr>
+  <tr><td>Crawl Thesh. (mm)</td><td><input type=number id=ik_crawl_thres > </td></tr>
   <tr><td>Crawl Vel. (mm/s)</td><td><input type=number id=ik_crawl_vel ></td></tr>
   
   <tr><td>MIDI base note</td><td>     <input type=number id=midi_base_note > </td></tr>  
   <tr><td>MIDI move (s)</td><td>     <input type=number id=midi_move_dur > </td></tr>
   <tr><td>MIDI pick (s)</td><td>     <input type=number id=midi_pick_dur > </td></tr>
-  
-  <tr class="recorder"><td colspan=2><h4>Motion Recording</h4></td></tr>
+</table>
+<table>  
+  <tr class="recorder"><td colspan=2><h2>Motion Recorder</h2></td></tr>
   <tr class="recorder"><td>Sequence Nr.</td><td><input id="rec_sequence" type="number"></td></tr>  
   <tr class="recorder"><td colspan=2>
     <button id="rec_stop">STOP</button>
@@ -118,7 +155,7 @@ body[mode="recorder"] tr.recorder {display:table-row;}
 </table>
 
 <table id=global_config>
-  <tr><td><h3>Inputs</h3></td></tr>
+  <tr><td><h2>Inputs</h2></td></tr>
   <tr class="recorder"><td>Axis</td><td>X</td><td>Y</td><td>Z</td><td>A</td><td>B</td><td>C</td><td>D</td></tr>
   <tr class="recorder"><td>Offset </td><td> <input type=number id=ik_offset_0 > </td></tr>
   <tr><td><h4>Oscillate</h4></td></tr>
@@ -138,16 +175,31 @@ body[mode="recorder"] tr.recorder {display:table-row;}
 
 <canvas id=stats width="256" height="800"> </canvas>
 
-<table id=cues>  
-  <tr><td><h3>Cues</h3></td></tr>
+<table id=cues>
+  <tr><td><h2>Cues</h2></td></tr>
   <tr><td>Name   </td><td> <input id=cue_name_0> </td></tr>
   <tr><td>Run Script</td><td> <button id=cue_running_0>START</button> </td></tr>
   <tr><td>Cursor</td><td> <input type=number id=cue_cursor_0> </td></tr>  
   <tr><td>Script </td><td> <textarea id=cue_script_0> </textarea></td></tr>  
 </table>
 
-<textarea id=command onchange="set_all(this)" placeholder="Commands here"></textarea>
+<table id=console>
+  <tr><td><h2>Command Console</h2></td></tr>
+<tr><td><textarea id=output  disabled></textarea></td></tr>
+<tr><td><textarea id=command onchange="set_all(this)" placeholder="Enter commands here"></textarea></td></tr>
+</table>
 <script>
+
+let history=[];
+function send(cmd)  {
+  if(websocket.readyState) {
+    websocket.send(cmd);
+    let output_el = document.getElementById('output');
+    history=history.slice(-9);
+    history.push(cmd);
+    output_el.value = history.join('\n');
+  }
+}
 
 // set the a parameter by an input element.
 // no_update : for fast, one-way updated values.
@@ -158,8 +210,7 @@ function set(el, no_update) {
   if(el.tagName == 'BUTTON') value = 1;
   else if(el.type == 'checkbox') value = el.checked ? 1 : 0;
   
-  if(websocket.readyState)
-    websocket.send(`${param} ${value}`);
+  send(`${param} ${value}`);
   
   if(!no_update) {
     el.blur();
@@ -172,7 +223,7 @@ function set_all(el) {
   let cmds = el.value;  
   for(let cmd of cmds.split("\n"))
     if(cmd)
-      websocket.send(cmd);  
+      send(cmd);  
   el.value = "";
 }
 
@@ -277,6 +328,23 @@ async function fetch_and_show(url) {
 }
 fetch_and_show("/config");
 
+// provide a "copy" of selection featuring commands on the selected input elements  
+function copy(evt) {
+  let selection = window.getSelection();
+  if(selection.isCollapsed) return;
+
+  let els = selection.getRangeAt(0).cloneContents().querySelectorAll('[id]');
+  let copied = '';  
+  for(let el of els)
+    if('value' in el)
+      copied += `${el.id} ${el.value}\n`;
+
+  evt.clipboardData.setData('text/plain',copied);
+	evt.preventDefault();
+}
+window.addEventListener('copy',copy);
+
+
 // allow Gamepads and other HID controllers to input into ik_manual fields
 function updateGamepad() {
   var gamepads = navigator.getGamepads();
@@ -304,6 +372,7 @@ updateGamepad();
 let uri=(document.location.protocol=='https:'?'wss:':'ws:')+'//'+document.location.hostname+':' +document.location.port+'/ws';
 let websocket=null;
 let status_timeout = 0;
+let offline_timeout;
 let open_socket=async function()
 {
   websocket=new window.WebSocket(uri);
@@ -312,11 +381,15 @@ let open_socket=async function()
     websocket.send('send_status 1\n');
   }
   websocket.onclose=function()
-  {
+  {    
     setTimeout(open_socket,1000); // try to repoen connection after one second
   }
   websocket.onmessage=async function(event)
   {
+    if(offline_timeout) clearTimeout(offline_timeout);
+    offline_timeout = setTimeout(()=>{document.querySelector('#offline').style.display='block'},1500);
+    document.querySelector('#offline').style.display='none';
+    
     show_all(event.data);
     clearTimeout(status_timeout);
     status_timeout = setTimeout(()=>websocket.send('send_status 1\n'), 50);
