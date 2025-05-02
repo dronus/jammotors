@@ -102,6 +102,7 @@ struct Status : public Params {
   P_float (dt_max, false, 0, 0, 0);
   P_float (ik_error, false, 0, 0, 0);
   P_uint8_t (send_status,false,0,1,0);
+  P_float (cue_delay, false, 0,60000, 1);
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
@@ -295,6 +296,11 @@ void motionLoop(void* dummy){
     status.dt = dt / 1000.f;
     if(status.uptime > 5)
       status.dt_max = max(status.dt, status.dt_max);
+
+    status.cue_delay -= status.dt;
+    for(uint8_t i=0; i<cues.size(); i++)
+      if(cues[i].cue_running && status.cue_delay <= 0)
+        cues[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
 
     for(Axis& axis : axes)
       axis.ik_input = 0;
@@ -497,9 +503,6 @@ void loop()
   oscUdp.onOscMessageReceived( oscMessageParser );
   ws.cleanupClients();
   
-  for(uint8_t i=0; i<cues.size(); i++)
-    cues[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
-
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
   if(status.send_status) {
