@@ -28,7 +28,7 @@ struct Cue  : public Params{
     std::string command = cue_script.substr(cue_cursor, end - cue_cursor);
     
     if(command.length() > 2) {
-      Serial.printf("Cue command : \"%s\"\n", command.c_str() );
+      // Serial.printf("Cue command : \"%s\"\n", command.c_str() );
       command_func((char*)command.c_str());
     }
     

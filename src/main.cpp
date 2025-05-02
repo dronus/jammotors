@@ -166,27 +166,50 @@ bool readPrefs(Params* params, int16_t channel_id = -1) {
   return got_some;
 }
 
-// set the parameter matching "key" from the given Params struct to "value".
-void setParam(Params* params, int16_t channel_id, char* key, char* value_str, bool dont_save = false) {
+std::unordered_map<std::string,Param*> allParams; 
 
+// register parameters of given struct Params and channel_id for later use
+void registerParams(Params* params, int16_t channel_id) {  
   for(Param* p = params->getParams(); p ; p = p->next()) {
-
     char prefs_name[32];
     if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
       snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
     else
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
-
-    if ( strcmp(prefs_name, key) == 0 ) {
-      // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
-      p->set(value_str);
-      if(!dont_save && p->desc->persist)
-        if(p->desc->type == P_STRING)
-          prefs.putString(prefs_name,value_str);
-        else
-          prefs.putFloat(prefs_name, p->get());
-    }
+    
+    allParams[prefs_name] = p;  
   }
+}
+
+void registerAllParams() {
+  allParams.clear();
+  // handle persistent per-channel parameters
+  for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
+    registerParams(&channels[channel_id], channel_id);
+  
+  // check for global parameters
+  registerParams(&status, -1);
+  registerParams(&controller, -1);
+  if(controller.kinematic) registerParams(controller.kinematic, -1);
+  registerParams(&midi_picker, -1);
+
+  // check for axes parameters
+  for(uint8_t i=0; i<axes.size(); i++)
+    registerParams(&axes[i], i);
+
+  // check for cue parameters
+  for(uint8_t i=0; i<cues.size(); i++)
+    registerParams(&cues[i], i);  
+};
+
+void setParam(Param* p, char* prefs_name, char* value_str, bool dont_save = false) {
+  // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
+  p->set(value_str);
+  if(!dont_save && p->desc->persist)
+    if(p->desc->type == P_STRING)
+      prefs.putString(prefs_name,value_str);
+    else
+      prefs.putFloat(prefs_name, p->get());
 }
 
 // set single parameter from incoming key, value message.
@@ -198,27 +221,17 @@ void setFromWs(char* key_value, bool dont_save = false)  {
   *(value_str++) = 0; // mark end of key and advance
   // Serial.printf("Set %s %s\n",key,value_str);
 
-  // handle persistent per-channel parameters
-  for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
-    setParam(&channels[channel_id], channel_id, key, value_str, dont_save);
+  if(allParams.count(key))
+    setParam(allParams[key], key, value_str, dont_save);
+  else
+    Serial.printf("Error : setFromWs : parameter %s not found.\n", key);
   
-  // check for global parameters
-  setParam(&status, -1,  key, value_str, dont_save);
-  setParam(&controller, -1,  key, value_str, dont_save);
-  if(controller.kinematic) setParam(controller.kinematic, -1,  key, value_str, dont_save);
-  setParam(&midi_picker, -1,  key, value_str, dont_save);
-
-  // check for axes parameters
-  for(uint8_t i=0; i<axes.size(); i++)
-    setParam(&axes[i], i,  key, value_str, dont_save);
-
-  // check for cue parameters
-  for(uint8_t i=0; i<cues.size(); i++)
-    setParam(&cues[i], i,  key, value_str, dont_save);
-  if(cues[cues.size()-1].cue_script != "\n")
+  if(cues[cues.size()-1].cue_script != "\n") {
     cues.push_back(Cue());
-};
-
+    registerAllParams();
+  }
+ }
+ 
 void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
   for(Param* p = params.getParams(); p; p = p->next())
     if(p->desc->persist == persistent) {
@@ -299,7 +312,7 @@ void motionLoop(void* dummy){
 
     status.cue_delay -= status.dt;
     for(uint8_t i=0; i<cues.size(); i++)
-      if(cues[i].cue_running && status.cue_delay <= 0)
+      while(cues[i].cue_running && status.cue_delay <= 0)
         cues[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
 
     for(Axis& axis : axes)
@@ -360,6 +373,8 @@ void setup()
     cues.push_back(Cue());
     got_one = readPrefs(&cues[cue_id],cue_id);
   }
+
+  registerAllParams();
 
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
