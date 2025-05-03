@@ -26,6 +26,7 @@
   by setting a channel to "PWM" driver on pin 2 - this will control the ESP32 module's onboard LED.
 
 */
+#include <map>
 #include <LittleFS.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
@@ -169,7 +170,7 @@ void readPrefs(Params* params, int16_t channel_id = -1) {
 
 
 
-std::unordered_map<std::string,Param*> allParams; 
+std::map<std::string,Param*> allParams; 
 
 // register parameters of given struct Params and channel_id for later use
 void registerParams(Params* params, int16_t channel_id) {  
@@ -243,34 +244,18 @@ void setFromWs(char* key_value, bool dont_save = false)  {
   }
  }
  
-void writeParamsToBuffer(char*& ptr, Params& params, bool persistent, int8_t index=-1) {
-  for(Param* p = params.getParams(); p; p = p->next())
-    if(p->desc->persist == persistent) {
-      ptr += (size_t)sprintf(ptr,"%s", p->desc->name);
-      if(index != -1) // add index to name, if set
-        ptr += (size_t)sprintf(ptr,"_%d", index);
-      if(p->desc->type != P_STRING)  // if number
-        ptr += (size_t)sprintf(ptr," %.5g\n",p->get());
-      else {// if string
-        ptr += (size_t)snprintf(ptr,256," %s\n",p->getString().c_str());
-      }
-    }
-}
-
-template <typename Type> void writeParamsArrayToBuffer (char*& ptr, std::vector<Type>& params, bool persistent) {
-  for(int8_t i=0; i<params.size(); i++)
-    writeParamsToBuffer(ptr, params[i], persistent, i );
-}
-
 size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
   char* ptr = buffer;
-  writeParamsArrayToBuffer(ptr, channels, persistent);
-  writeParamsToBuffer(ptr, controller, persistent);
-  if(controller.kinematic) writeParamsToBuffer(ptr, *(controller.kinematic), persistent);
-  writeParamsToBuffer(ptr, status, persistent);
-  writeParamsToBuffer(ptr, midi_picker, persistent);
-  writeParamsArrayToBuffer(ptr, axes, persistent);
-  writeParamsArrayToBuffer(ptr, cues, persistent);
+  for(auto [key, p] : allParams) {
+    if(p->desc->persist == persistent) {
+      ptr += (size_t)sprintf(ptr,"%s ", key.c_str());
+      if(p->desc->type != P_STRING)  // if number
+        ptr += (size_t)sprintf(ptr,"%.5g\n",p->get());
+      else {// if string
+        ptr += (size_t)snprintf(ptr,256,"%s\n",p->getString().c_str());
+      }
+    }
+  }
   return ptr - buffer;
 }
 
