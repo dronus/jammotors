@@ -176,6 +176,7 @@ void registerAllParams() {
   registerParams(&status);
   registerParams(&controller);
   if(controller.kinematic) registerParams(controller.kinematic);
+  registerParams(&recorder);
   registerParams(&midi_picker);
   // per-channel parameters
   for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)

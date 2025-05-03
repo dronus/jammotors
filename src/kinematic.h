@@ -130,13 +130,6 @@ struct MotionController : public Params {
   P_float (ik_crawl_thres,true,    0,  10000, 10000);
   P_float (ik_crawl_vel,  true,    0,  10000, 10000);
 
-  P_bool    (rec_record, false,false);
-  P_bool    (rec_play,   false,false);
-  P_bool    (rec_stop, false,false);
-  P_uint8_t(rec_sequence, false,0,127,0);
-  P_uint32_t(rec_index, false,0,1024,0);
-  P_uint32_t(rec_size,   false,0,1024,0);
-
   P_uint8_t(kinematic_id,true,0,2,1);
   P_end;
   
@@ -146,21 +139,8 @@ struct MotionController : public Params {
   // update kinematic input and output axes and write output to channels.  
   // return "error" in the kinematics underlying unit (eg. mm for cartesian inverse kinematics)
   float update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels,  void(*updatePrefs)()) {
-  
-    recorder.set_sequence(rec_sequence);
-    if(rec_stop) {
-      rec_stop = false;
-      recorder.stop();      
-    } else if(rec_record) {
-      rec_record = false;
-      recorder.record();
-    } else if(rec_play) {
-      rec_play = false;
-      recorder.play();
-    }
+      
     recorder.update(dt,axes);
-    rec_index = recorder.index;
-    rec_size   = recorder.size();
     
     // update kinematic input axes (eg. cartesian in case of inverse kinematics)
     for(uint8_t i=0; i<=2; i++)

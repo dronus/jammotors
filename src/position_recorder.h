@@ -9,29 +9,37 @@ struct Frame {
   int16_t x[4];
 };
 
-struct Recorder {
+struct Recorder : public Params {
+
+  P_bool    (rec_record, false,false);
+  P_bool    (rec_play,   false,false);
+  P_bool    (rec_stop, false,false);
+  P_uint8_t (rec_sequence, false,0,127,0);
+  P_string (rec_name,false,"Unnamed");
+  P_uint32_t(rec_index, false,0,1024,0);
+  P_uint32_t(rec_size,   false,0,1024,0);
+  P_end;
+
   File file;
-  int8_t sequence_id = -1;
+  int8_t loaded_sequence = -1;
   bool recording = 0;
   bool playback  = 0;
-  uint32_t index = 0;
   float dt = 0;  
   Frame frames[4];
   
   void reopen() {
     if(file) file.close();
     char filename[32];
-    sprintf(filename, "/cue_motion_%d", sequence_id);
+    sprintf(filename, "/cue_motion_%d", rec_sequence);
     file = LittleFS.open(filename, recording ? "w" : "r", true);
     Serial.printf("Opening  %s for %s\n", filename, recording ? "recording" : "playback");
+    if(recording)
+      file.printf("%s\n",rec_name.c_str());
+    else
+      rec_name = file.readStringUntil('\n').c_str();
     dt = 0;
-    index = 0;
-  }
-  
-  void set_sequence(uint8_t _sequence_id) {
-    if(_sequence_id == sequence_id || playback || recording) return;
-    sequence_id = _sequence_id;
-    reopen(); // open file now to provide a valid size() for the UI
+    loaded_sequence = rec_sequence;
+    rec_index = 0;    
   }
   
   void record() {
@@ -117,8 +125,28 @@ struct Recorder {
       axis.ik_manual = interpolate4(p0,p1,p2,p3,dt);
     }
   }
-
+  
   void update(float _dt, std::vector<Axis>& axes) {
+  
+    // only switch sequence if not currently playing or recording.
+    if(!playback && !recording && rec_sequence != loaded_sequence) 
+      reopen();
+    else
+      rec_sequence = loaded_sequence; // switching denied, give feedback
+
+    // handle "transport pushbuttons"
+    if(rec_stop) {
+      rec_stop = false;
+      stop();
+    } else if(rec_record) {
+      rec_record = false;
+      record();
+    } else if(rec_play) {
+      rec_play = false;
+      play();
+    }
+    rec_size = size();  
+  
     if(recording || playback) {
       update_axis(dt, axes[0]); // x
       update_axis(dt, axes[1]); // y
@@ -139,7 +167,7 @@ struct Recorder {
       frames[2] = frames[3];
 
       dt = 0;
-      index++;            
+      rec_index++;            
     }
         
     if(playback && dt > frames[3].dt / 1000.f) {
@@ -150,8 +178,8 @@ struct Recorder {
       file.read((uint8_t*)&frames[3], sizeof(Frame));
       //Serial.printf("IK CP read: idx: %d dt: %.5g file pos: %d \n", index, dt, file.position());
 
-      index++;
-      if(index >= size()) stop();
+      rec_index++;
+      if(rec_index >= size()) stop();
     }
   }
   
