@@ -116,6 +116,7 @@ struct Status : public Params {
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
   P_string   (osc_out_ip  ,  true, "0.0.0.0"); // crashes with empty default string "" - why ?
   P_uint32_t (osc_out_port,  true, 0, 0xFFFF, 8888);
+  P_uint32_t (osc_in_count,  false, 0, 0, 0);
   P_uint32_t (nvs_free, false, 0, 0,0 );
   P_uint32_t (fs_free, false, 0, 0,0 );
   P_uint32_t (ram_free, false, 0, 0,0 );
@@ -251,7 +252,7 @@ size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
 
 // WebSocket "status" API to send current status
 void send_status() {
-  size_t len = 2048;
+  size_t len = 3000;
   char buffer[len];
   size_t written = writeAllParamsToBuffer(buffer, false);
   if(written >= len) Serial.printf("DEBUG send_status BUFFER OVERFLOW! bytes: %d \n", written ); 
@@ -456,8 +457,8 @@ void setup()
 }
 
 void oscMessageParser( MicroOscMessage& receivedOscMessage) {
-  Serial.printf("OSC in : %s",receivedOscMessage.buffer);
-
+  // Serial.printf("OSC in : %s",receivedOscMessage.buffer);
+  status.osc_in_count++;
   if ( receivedOscMessage.checkOscAddress("/midi") ) {
     const uint8_t* midi;
     receivedOscMessage.nextAsMidi(&midi);    
@@ -483,6 +484,12 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     for(Script& script : scripts)
       if(script.script_name == script_name)
         script.script_running=1;
+  }
+  if ( receivedOscMessage.checkOscAddress("/set") ) {
+    std::string key   = receivedOscMessage.nextAsString();
+    float value = receivedOscMessage.nextAsFloat();
+    if(allParams.count(key))
+      allParams[key]->set(value);
   }
 }
 
