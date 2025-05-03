@@ -143,7 +143,7 @@ void readPref(const char* prefs_name, Param* p) {
 
   if (prefs.isKey(prefs_name)){
     if(p->desc->type == P_STRING) {
-      String val = prefs.getString(prefs_name); // readPrefsString(prefs_name,p->getString().c_str());
+      String val = prefs.getString(prefs_name);
       Serial.print(val);
       p->set(std::string(val.c_str()));
     } else { 
@@ -155,27 +155,10 @@ void readPref(const char* prefs_name, Param* p) {
   Serial.println();
 }
 
-void readPrefs(Params* params, int16_t channel_id = -1) {
-  for(Param* p = params->getParams(); p; p=p->next()) {
-    
-    if(!p->desc->persist) continue;
-    
-    char prefs_name[32];
-    if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
-      snprintf(prefs_name, sizeof(prefs_name), "%s_%d", p->desc->name, channel_id);
-    else
-      snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
-
-    readPref(prefs_name, p);    
-  }
-}
-
-
-
 std::map<std::string,Param*> allParams; 
 
 // register parameters of given struct Params and channel_id for later use
-void registerParams(Params* params, int16_t channel_id) {  
+void registerParams(Params* params, int16_t channel_id=-1) {  
   for(Param* p = params->getParams(); p ; p = p->next()) {
     char prefs_name[32];
     if(channel_id > -1) // per-channel pref names are suffixed by '_' and the channel_id
@@ -190,10 +173,10 @@ void registerParams(Params* params, int16_t channel_id) {
 void registerAllParams() {
   allParams.clear();  
   // global parameters
-  registerParams(&status, -1);
-  registerParams(&controller, -1);
-  if(controller.kinematic) registerParams(controller.kinematic, -1);
-  registerParams(&midi_picker, -1);
+  registerParams(&status);
+  registerParams(&controller);
+  if(controller.kinematic) registerParams(controller.kinematic);
+  registerParams(&midi_picker);
   // per-channel parameters
   for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
     registerParams(&channels[channel_id], channel_id);    
@@ -209,6 +192,7 @@ void registerAllParams() {
 };
 
 void readAllPrefs() {
+  registerAllParams();
   for(std::pair<std::string, Param*> key_param : allParams)
     if(key_param.second->desc->persist) {
       // Serial.printf("Trying to read %s into param %s ...",key_param.first.c_str(), key_param.second->desc->name );
@@ -317,7 +301,7 @@ void motionLoop(void* dummy){
     for(Axis& axis : axes)
       axis.ik_input = 0;
     midi_picker.update(axes,status.dt);
-    status.ik_error = controller.update(status.dt, axes, channels,[](Params* params) -> void{ readPrefs(params); });
+    status.ik_error = controller.update(status.dt, axes, channels, &readAllPrefs);
     
     for(Channel& c : channels)
       c.update(status.dt);
@@ -353,15 +337,13 @@ void setup()
   prefs.begin("motor");
   Serial.println("Prefs started.");
   
-  // reading prefs require some order, as params for arrays of structs can only be registered after the size is known.
-  registerAllParams();
+  // reading prefs require some order, as params for arrays of structs can only be registered after the size is known.  
   readAllPrefs(); // read all static-sized prefs data  
   // use just read numbers from status to initialize arrays
   channels.resize(status.num_channels);
   axes.resize(status.num_channels+3);
   cues.resize(status.num_cues);
   // re-register and re-read to handle newly added parameters from channels, axes, cues.
-  registerAllParams(); 
   readAllPrefs();
 
   for(Channel& c : channels)

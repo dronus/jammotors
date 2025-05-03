@@ -145,7 +145,7 @@ struct MotionController : public Params {
     
   // update kinematic input and output axes and write output to channels.  
   // return "error" in the kinematics underlying unit (eg. mm for cartesian inverse kinematics)
-  float update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels,  void(*readPrefs)(Params* params)) {
+  float update(float dt, std::vector<Axis>& axes, std::vector<Channel>& channels,  void(*updatePrefs)()) {
   
     recorder.set_sequence(rec_sequence);
     if(rec_stop) {
@@ -171,7 +171,7 @@ struct MotionController : public Params {
       if(kinematic) delete kinematic;
       kinematic = createKinematic(kinematic_id);
       last_kinematic_id = kinematic_id;
-      (*readPrefs)(kinematic);
+      (*updatePrefs)();
     }
     if(kinematic) kinematic->update(dt,axes,channels);
     
