@@ -17,21 +17,22 @@ struct Script  : public Params{
       return;
 
     int32_t end = script_script.find("\\n", script_cursor);
+    std::string command = script_script.substr(script_cursor, end - script_cursor);
+
+    if(command.length() > 2) {
+      // Serial.printf("Script command : \"%s\"\n", command.c_str() );
+      command_func((char*)command.c_str());
+    }
+
     if(end == std::string::npos) {
       // no further commands
       script_cursor = 0;
       script_running = 0;
       return;
-    }    
-    std::string command = script_script.substr(script_cursor, end - script_cursor);
-    
-    if(command.length() > 2) {
-      // Serial.printf("Script command : \"%s\"\n", command.c_str() );
-      command_func((char*)command.c_str());
     }
-    
+
     script_cursor = end + 2; // skip \n
-  }  
+  }
 };
 
 uint8_t Script::next_id = 0;
