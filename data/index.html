@@ -100,6 +100,11 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Uptime (s)</td><td><input id="uptime"  type="number" disabled></td></tr>
   <tr><td>Cycle time </td><td>   <input type=number id=dt disbled> </td></tr>
   <tr><td>Worst cycle </td><td>  <input type=number id=dt_max disbled> </td></tr>
+  <tr><td>Load</td><td>  <input type=number id=load disbled> </td></tr>
+  <tr><td>Worst load</td><td>  <input type=number id=load_max disbled> </td></tr>
+  <tr><td>OSC in count</td><td>  <input type=number id=osc_in_count disbled> </td></tr>
+  <tr><td>#Scripts</td><td><input type=number id=num_scripts disabled> </td></tr>
+  <tr style="display:none"><td>Script delay</td><td><input type=number id=script_delay disabled></td></tr>
   <tr><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
   <tr class="recorder"><td>FS free</td><td>  <input type=number id=fs_free disbled> </td></tr>
   <tr><td>RAM free</td><td>  <input type=number id=ram_free disbled> </td></tr>
@@ -107,7 +112,6 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Bus Voltage</td><td><input id="vbus" type="number" disabled></td></tr>
   <tr><td>IK Position error </td><td>  <input type=number id=ik_error disbled>  </td></tr>
   <tr style="display:none"><td>send_status</td><td><input id="send_status" type="number"></td></tr>
-  
 </table>
 <table>
   <tr><td><h2>Network</h2> </td></tr>
@@ -120,6 +124,7 @@ canvas {border-radius: 5px; border: 2px solid #444;}
 </table>
 <table>  
   <tr><td><h2>Kinematic</h2></td></tr>  
+  <tr><td>#Channels</td><td><input type=number id=num_channels> </td></tr>
   <tr><td>Mode</td><td>
     <select id=kinematic_id>
       <option value=0>None</option>
@@ -129,6 +134,8 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>IK Shoulder Offs. (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
+  <tr><td>IK Finger L (mm)</td><td>     <input type=number id=ik_finger_l > </td></tr>
+  <tr><td>IK Hand W (mm)</td><td>     <input type=number id=ik_hand_w > </td></tr>
   <tr><td>Max. velocity (mm/s)</td><td>     <input type=number id=ik_vel_max > </td></tr>
   <tr><td>Velocity control K</td><td>     <input type=number id=ik_vel_k > </td></tr>
   <tr><td>Max. accel. (mm/s²)</td><td>     <input type=number id=ik_acc_max > </td></tr>
