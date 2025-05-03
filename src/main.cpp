@@ -53,7 +53,7 @@ const float pi = 3.1415926f;
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
 #include "midi_picker.h"
-#include "cue.h"
+#include "script.h"
 
 
 Preferences prefs;
@@ -77,8 +77,8 @@ const uint8_t max_channels = 5;
 std::vector<Channel> channels(0);
 const uint8_t max_axes = max_channels + 3;
 std::vector<Axis> axes(0);
-const uint8_t max_cues = 16;
-std::vector<Cue> cues; 
+const uint8_t max_scripts = 16;
+std::vector<Script> scripts; 
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -105,12 +105,12 @@ struct Status : public Params {
   P_float (load_max, false, 0, 0, 0);
   P_float (ik_error, false, 0, 0, 0);
   P_uint8_t (send_status,false,0,1,0);
-  P_float (cue_delay, false, 0,60000, 1);
+  P_float (script_delay, false, 0,60000, 1);
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
   P_uint8_t (num_channels,true,1,max_channels,5);
-  P_uint8_t (num_cues,true,1,max_cues,1);
+  P_uint8_t (num_scripts,true,1,max_scripts,1);
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
@@ -184,9 +184,9 @@ void registerAllParams() {
   //  per-axes parameters
   for(uint8_t i=0; i<axes.size(); i++)
     registerParams(&axes[i], i);
-  // per-cue parameters
-  for(uint8_t i=0; i<cues.size(); i++)
-    registerParams(&cues[i], i);
+  // per-script parameters
+  for(uint8_t i=0; i<scripts.size(); i++)
+    registerParams(&scripts[i], i);
     
   // for(auto p : allParams)
   //  Serial.printf("Registered param %s (%s) of type %d \n", p.first.c_str(), p.second->desc->name, p.second->desc->type);
@@ -225,8 +225,8 @@ void setFromWs(char* key_value, bool dont_save = false)  {
   else
     Serial.printf("Error : setFromWs : parameter %s not found.\n", key);
   
-  if(cues[cues.size()-1].cue_script != "\n") {
-    cues.push_back(Cue());
+  if(scripts[scripts.size()-1].script_script != "\n") {
+    scripts.push_back(Script());
     registerAllParams();
   }
  }
@@ -294,10 +294,10 @@ void motionLoop(void* dummy){
     if(status.uptime > 5)
       status.dt_max = max(status.dt, status.dt_max);
 
-    status.cue_delay -= status.dt;
-    for(uint8_t i=0; i<cues.size(); i++)
-      while(cues[i].cue_running && status.cue_delay <= 0)
-        cues[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
+    status.script_delay -= status.dt;
+    for(uint8_t i=0; i<scripts.size(); i++)
+      while(scripts[i].script_running && status.script_delay <= 0)
+        scripts[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
 
     for(Axis& axis : axes)
       axis.ik_input = 0;
@@ -343,8 +343,8 @@ void setup()
   // use just read numbers from status to initialize arrays
   channels.resize(status.num_channels);
   axes.resize(status.num_channels+3);
-  cues.resize(status.num_cues);
-  // re-register and re-read to handle newly added parameters from channels, axes, cues.
+  scripts.resize(status.num_scripts);
+  // re-register and re-read to handle newly added parameters from channels, axes, scripts.
   readAllPrefs();
 
   for(Channel& c : channels)
@@ -475,11 +475,11 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     for(uint8_t i=0; i<4; i++)
       axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
   }
-  if ( receivedOscMessage.checkOscAddress("/cue") ) {    
-    std::string cue_name = receivedOscMessage.nextAsString();
-    for(Cue& cue : cues)
-      if(cue.cue_name == cue_name)
-        cue.cue_running=1;
+  if ( receivedOscMessage.checkOscAddress("/script") ) {
+    std::string script_name = receivedOscMessage.nextAsString();
+    for(Script& script : scripts)
+      if(script.script_name == script_name)
+        script.script_running=1;
   }
 }
 
