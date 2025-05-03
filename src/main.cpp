@@ -101,6 +101,8 @@ Kinematic* createKinematic(uint8_t kinematic_id) {
 struct Status : public Params {
   P_float (dt, false, 0, 0, 0);
   P_float (dt_max, false, 0, 0, 0);
+  P_float (load, false, 0, 0, 0);
+  P_float (load_max, false, 0, 0, 0);
   P_float (ik_error, false, 0, 0, 0);
   P_uint8_t (send_status,false,0,1,0);
   P_float (cue_delay, false, 0,60000, 1);
@@ -297,6 +299,7 @@ void motionLoop(void* dummy){
   last_time = millis();
   while(true) {
     vTaskDelayUntil( &xLastWakeTime, cycle_time );
+    uint32_t load_time = micros();
     // compute delta time
     uint32_t time = millis();
     status.uptime = time / 1000;
@@ -320,6 +323,9 @@ void motionLoop(void* dummy){
       c.update(status.dt);
     
     send_osc();
+    
+    status.load = (micros() - load_time) / (float)cycle_time / 1000.f;
+    status.load_max = max(status.load, status.load_max);
   }
 }
 
