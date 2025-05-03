@@ -226,7 +226,10 @@ void setFromWs(char* key_value, bool dont_save = false)  {
     Serial.printf("Error : setFromWs : parameter %s not found.\n", key);
   
   if(scripts[scripts.size()-1].script_script != "\n") {
-    scripts.push_back(Script());
+    status.num_scripts = scripts.size();
+    prefs.putFloat("num_scripts", status.num_scripts);
+    
+    scripts.push_back(Script()); // add empty script, ready to edit
     registerAllParams();
   }
  }
@@ -343,7 +346,7 @@ void setup()
   // use just read numbers from status to initialize arrays
   channels.resize(status.num_channels);
   axes.resize(status.num_channels+3);
-  scripts.resize(status.num_scripts);
+  scripts.resize(status.num_scripts+1); // add one empty script, ready to edit
   // re-register and re-read to handle newly added parameters from channels, axes, scripts.
   readAllPrefs();
 
