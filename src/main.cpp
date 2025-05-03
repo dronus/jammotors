@@ -106,7 +106,8 @@ struct Status : public Params {
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
-  P_uint8_t (num_channels,true,1,5,max_channels);
+  P_uint8_t (num_channels,true,1,max_channels,5);
+  P_uint8_t (num_cues,true,1,max_cues,1);
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
@@ -133,8 +134,25 @@ void switchWifiAp() {
   dnsServer.start(53, "*", WiFi.softAPIP());
 }
 
-bool readPrefs(Params* params, int16_t channel_id = -1) {
-  bool got_some = false;
+
+void readPref(const char* prefs_name, Param* p) {
+  Serial.print(prefs_name);Serial.print(" ");
+
+  if (prefs.isKey(prefs_name)){
+    if(p->desc->type == P_STRING) {
+      String val = prefs.getString(prefs_name); // readPrefsString(prefs_name,p->getString().c_str());
+      Serial.print(val);
+      p->set(std::string(val.c_str()));
+    } else { 
+      float val = prefs.getFloat(prefs_name);
+      Serial.print(val);
+      p->set(val);
+    }
+  }
+  Serial.println();
+}
+
+void readPrefs(Params* params, int16_t channel_id = -1) {
   for(Param* p = params->getParams(); p; p=p->next()) {
     
     if(!p->desc->persist) continue;
@@ -145,26 +163,11 @@ bool readPrefs(Params* params, int16_t channel_id = -1) {
     else
       snprintf(prefs_name, sizeof(prefs_name), "%s", p->desc->name);
 
-    Serial.print(prefs_name);Serial.print(" ");
-
-    if (prefs.isKey(prefs_name)){      
-      if(p->desc->type == P_STRING) {
-        String val = prefs.getString(prefs_name); // readPrefsString(prefs_name,p->getString().c_str());
-        Serial.print(val);
-        p->set(std::string(val.c_str()));
-      } else { 
-        float val = prefs.getFloat(prefs_name);
-        Serial.print(val);
-        p->set(val);
-      }
-      got_some = true;
-    }
-
-    Serial.println();
+    readPref(prefs_name, p);    
   }
-  
-  return got_some;
 }
+
+
 
 std::unordered_map<std::string,Param*> allParams; 
 
@@ -182,25 +185,33 @@ void registerParams(Params* params, int16_t channel_id) {
 }
 
 void registerAllParams() {
-  allParams.clear();
-  // handle persistent per-channel parameters
-  for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
-    registerParams(&channels[channel_id], channel_id);
-  
-  // check for global parameters
+  allParams.clear();  
+  // global parameters
   registerParams(&status, -1);
   registerParams(&controller, -1);
   if(controller.kinematic) registerParams(controller.kinematic, -1);
   registerParams(&midi_picker, -1);
-
-  // check for axes parameters
+  // per-channel parameters
+  for(uint8_t channel_id = 0; channel_id < channels.size(); channel_id++)
+    registerParams(&channels[channel_id], channel_id);    
+  //  per-axes parameters
   for(uint8_t i=0; i<axes.size(); i++)
     registerParams(&axes[i], i);
-
-  // check for cue parameters
+  // per-cue parameters
   for(uint8_t i=0; i<cues.size(); i++)
-    registerParams(&cues[i], i);  
+    registerParams(&cues[i], i);
+    
+  // for(auto p : allParams)
+  //  Serial.printf("Registered param %s (%s) of type %d \n", p.first.c_str(), p.second->desc->name, p.second->desc->type);
 };
+
+void readAllPrefs() {
+  for(std::pair<std::string, Param*> key_param : allParams)
+    if(key_param.second->desc->persist) {
+      // Serial.printf("Trying to read %s into param %s ...",key_param.first.c_str(), key_param.second->desc->name );
+      readPref(key_param.first.c_str(), key_param.second);
+    }
+}
 
 void setParam(Param* p, char* prefs_name, char* value_str, bool dont_save = false) {
   // Serial.printf("setParam %s : %s\n", prefs_name, value_str);
@@ -351,31 +362,20 @@ void setup()
   prefs.begin("motor");
   Serial.println("Prefs started.");
   
-  readPrefs(&status);
-  readPrefs(&controller);
-  if(controller.kinematic) readPrefs(controller.kinematic);
-  readPrefs(&midi_picker);
-
-  channels.resize(status.num_channels);  
-  for(uint8_t channel_id = 0; channel_id<channels.size(); channel_id++) {
-    Channel& channel = channels[channel_id];
-    // read preferences
-    readPrefs(&channel,channel_id);
-    // initialize
-    channel.init();
-  }
-  
-  axes.resize(status.num_channels+3);
-  for(uint8_t axis_id = 0; axis_id<axes.size(); axis_id++)
-    readPrefs(&axes[axis_id],axis_id);
-
-  for(uint8_t cue_id = 0, got_one = true; cue_id<max_cues && got_one; cue_id++) {
-    cues.push_back(Cue());
-    got_one = readPrefs(&cues[cue_id],cue_id);
-  }
-
+  // reading prefs require some order, as params for arrays of structs can only be registered after the size is known.
   registerAllParams();
+  readAllPrefs(); // read all static-sized prefs data  
+  // use just read numbers from status to initialize arrays
+  channels.resize(status.num_channels);
+  axes.resize(status.num_channels+3);
+  cues.resize(status.num_cues);
+  // re-register and re-read to handle newly added parameters from channels, axes, cues.
+  registerAllParams(); 
+  readAllPrefs();
 
+  for(Channel& c : channels)
+    c.init();
+  
   // try to connect configured WiFi AP. If not possible, back up 
   // and provide own AP, to allow further configuration.
   Serial.println("Connecting WIFi");
