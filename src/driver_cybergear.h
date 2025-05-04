@@ -50,10 +50,10 @@ struct DriverCybergear : public Driver{
       cybergear.set_mech_position_to_zero();
       c.reset_zero = false;
     }
-    float target_torque = c.enabled ? c.accel/1000.f : 0.f;
+    float target_torque = c.enabled ? c.accel : 0.f;
     target_torque *= max(0.f,min( 1.f, (79.f-c.temperature/10.f) / 10.f ));  // attenuate by temperature stress
     
-    torque = max(0.f, torque + max(min(target_torque - torque, 0.01f),-0.01f));
+    torque = max(0.f, torque + max(min(target_torque - torque, 0.00001f),-0.00001f));
     if(torque != last_torque_limit) {
       // update enable state based on torque limit instead of c.enable
       // so we keep motor running while downramping torque on disenable.
@@ -71,7 +71,7 @@ struct DriverCybergear : public Driver{
 
     // execute move
     if(torque > 0.f)
-      cybergear.send_motion_control({c.target/1000.f,0.f,c.torque_in, c.pos_kp/1000.f,c.pos_kd/1000.f});
+      cybergear.send_motion_control({c.target,0.f,c.torque_in, c.pos_kp,c.pos_kd});
 
     // check motor state (handle messages for all CyberGear motors)
     // also updates motor status data that can be relayed to wifi clients then.
@@ -82,9 +82,9 @@ struct DriverCybergear : public Driver{
     XiaomiCyberGearStatus status = cybergear.get_status();
     // Serial.printf("POS:%f V:%f T:%f temp:%d\n", status.position, status.speed, status.torque, status.temperature);
 
-    c.position = (int32_t)round(status.position*1000.f);
+    c.position = status.position;
     c.temperature = status.temperature;
-    c.torque      = status.torque * 1000.f;
+    c.torque      = status.torque;
     // response->printf("%s %d\n","position",(int32_t)round(status.position*1000.f));
     // response->printf("%s %d\n","torque",(int32_t)round(status.torque*1000.f));
     // response->printf("%s %d\n","temperature",(int32_t)status.temperature);
