@@ -51,7 +51,7 @@ struct Channel : public Params {
     }
 
     // compute and set motion target
-    target = min(max(ik_target, pos_min),pos_max); 
+    target = min(max(ik_target * ik_a, pos_min),pos_max); 
    
     if(!last_enabled && enabled)
       alarm = 0;

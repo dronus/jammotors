@@ -33,7 +33,7 @@ struct KinematicArmCartesian : public Kinematic  {
     if(rot < ros) return; // target to close
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
     float alpha =  atan2f(x,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
-    axes[3].ik_ik_in = channels[0].ik_a * alpha  / (float)pi;
+    axes[3].ik_ik_in = 180 * alpha  / (float)pi;
     
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
@@ -48,8 +48,8 @@ struct KinematicArmCartesian : public Kinematic  {
     if(z==0 && rst==0) return; // point undefined.
     float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
     
-    axes[4].ik_ik_in = channels[1].ik_a * beta  / (float)pi;
-    axes[5].ik_ik_in = channels[2].ik_a * gamma / (float)pi;
+    axes[4].ik_ik_in = 180 * beta  / (float)pi;
+    axes[5].ik_ik_in = 180 * gamma / (float)pi;
       
     // update static torque (gravity correction)
     channels[0].torque_in = -ik_mass_a * cosf(alpha) * sinf(beta) / ik_length_a * copysign(1000.f, channels[0].ik_a); // in Nm
@@ -67,11 +67,11 @@ struct KinematicArmCartesian : public Kinematic  {
   float update_feedback(std::vector<Channel>& channels, std::vector<Axis>& axes) {
 
     for(uint8_t i=0; i<channels.size(); i++) 
-      axes[i+3].ik_feedback = channels[i].position;
+      axes[i+3].ik_feedback = channels[i].position / channels[i].ik_a;
 
-    float alpha = ( channels[0].position - axes[3].ik_offset ) / (float)channels[0].ik_a * (float)pi;
-    float beta  = ( channels[1].position - axes[4].ik_offset ) / (float)channels[1].ik_a * (float)pi;
-    float gamma = ( channels[2].position - axes[5].ik_offset ) / (float)channels[2].ik_a * (float)pi;
+    float alpha = ( channels[0].position / (float)channels[0].ik_a - axes[3].ik_offset ) / 180 * (float)pi;
+    float beta  = ( channels[1].position / (float)channels[1].ik_a - axes[4].ik_offset ) / 180 * (float)pi;
+    float gamma = ( channels[2].position / (float)channels[2].ik_a - axes[5].ik_offset ) / 180 * (float)pi;
     
     float x=0, y=0, z=0;
     z += ik_length_b;
