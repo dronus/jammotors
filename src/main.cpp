@@ -114,6 +114,7 @@ struct Status : public Params {
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
+  P_bool   (powersave, true, true);
   P_string   (osc_out_ip  ,  true, "0.0.0.0"); // crashes with empty default string "" - why ?
   P_uint32_t (osc_out_port,  true, 0, 0xFFFF, 8888);
   P_uint32_t (osc_in_count,  false, 0, 0, 0);
@@ -122,6 +123,8 @@ struct Status : public Params {
   P_uint32_t (ram_free, false, 0, 0,0 );
   P_bool(reset, false, false);
   P_end;
+
+  bool last_powersave;
 } status;
   
 // switch WiFi to acces point mode and provide an captive portal page.
@@ -378,7 +381,7 @@ void setup()
       cycle++;
   }
   WiFi.setHostname(status.name.c_str());
-  esp_wifi_set_ps(WIFI_PS_NONE);
+  esp_wifi_set_ps(status.powersave ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
   Serial.println();
   Serial.print("connected, IP address: ");
   Serial.println(WiFi.localIP().toString().c_str());
@@ -495,6 +498,11 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
 
 void loop() 
 {
+  if(status.powersave != status.last_powersave) {
+    esp_wifi_set_ps(status.powersave ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
+    status.last_powersave = status.powersave;
+  }
+
   ArduinoOTA.handle();
   if(WiFi.getMode() == WIFI_MODE_AP)
     dnsServer.processNextRequest();
