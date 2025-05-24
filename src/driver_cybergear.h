@@ -53,7 +53,7 @@ struct DriverCybergear : public Driver{
     float target_torque = c.enabled ? c.accel : 0.f;
     target_torque *= max(0.f,min( 1.f, (79.f-c.temperature/10.f) / 10.f ));  // attenuate by temperature stress
     
-    torque = max(0.f, torque + max(min(target_torque - torque, 0.00001f),-0.00001f));
+    torque = max(0.f, torque + max(min(target_torque - torque, 0.01f),-0.01f));
     if(torque != last_torque_limit) {
       // update enable state based on torque limit instead of c.enable
       // so we keep motor running while downramping torque on disenable.
