@@ -60,6 +60,7 @@ Preferences prefs;
 ArtnetnodeWifi artnetnode;
 AsyncWebServer httpServer(80);
 AsyncWebSocket ws("/ws");
+size_t max_status_length = 3000;
 
 DNSServer dnsServer;
 
@@ -121,6 +122,7 @@ struct Status : public Params {
   P_uint32_t (nvs_free, false, 0, 0,0 );
   P_uint32_t (fs_free, false, 0, 0,0 );
   P_uint32_t (ram_free, false, 0, 0,0 );
+  P_uint8_t (socket_count, false, 0, 0,0 );
   P_bool(reset, false, false);
   P_end;
 
@@ -255,11 +257,13 @@ size_t writeAllParamsToBuffer(char* buffer, bool persistent) {
 
 // WebSocket "status" API to send current status
 void send_status() {
-  size_t len = 3000;
-  char buffer[len];
-  size_t written = writeAllParamsToBuffer(buffer, false);
-  if(written >= len) Serial.printf("DEBUG send_status BUFFER OVERFLOW! bytes: %d \n", written ); 
-  ws.textAll(buffer);
+  if(!ws.availableForWriteAll())
+    return;
+    
+  AsyncWebSocketMessageBuffer* status_buffer = ws.makeBuffer(max_status_length);
+  size_t written = writeAllParamsToBuffer((char*)(status_buffer->get()), false);
+  if(written >= max_status_length) Serial.printf("DEBUG send_status BUFFER OVERFLOW! bytes: %d \n", written ); 
+  ws.textAll(status_buffer);
 }
 
 
@@ -496,7 +500,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   }
 }
 
-void loop() 
+void loop()
 {
   if(status.powersave != status.last_powersave) {
     esp_wifi_set_ps(status.powersave ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
@@ -517,6 +521,7 @@ void loop()
     status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
     status.ram_free = esp_get_minimum_free_heap_size();
     status.send_status = 0;
+    status.socket_count = ws.count();
     send_status();
   }
   if(status.reset)    
