@@ -228,11 +228,13 @@ function set(el, no_update) {
   }
 }
 
-function set_all(el) {
+async function set_all(el) {
   let cmds = el.value;  
-  for(let cmd of cmds.split("\n"))
+  for(let cmd of cmds.split("\n")) {
     if(cmd)
-      send(cmd);  
+      send(cmd);
+    await new Promise((resolve)=>setTimeout(resolve,100));
+  }
   el.value = "";
 }
 
