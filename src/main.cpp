@@ -152,8 +152,9 @@ void readPref(const char* prefs_name, Param* p) {
       String val = prefs.getString(prefs_name);
       Serial.print(val);
       p->set(std::string(val.c_str()));
-    } else { 
-      float val = prefs.getFloat(prefs_name);
+    } else {
+      uint32_t v = prefs.getULong(prefs_name);
+      float& val = reinterpret_cast<float&>(v);
       Serial.print(val);
       p->set(val);
     }
@@ -213,8 +214,11 @@ void setParam(Param* p, char* prefs_name, char* value_str, bool dont_save = fals
   if(!dont_save && p->desc->persist)
     if(p->desc->type == P_STRING)
       prefs.putString(prefs_name,value_str);
-    else
-      prefs.putFloat(prefs_name, p->get());
+    else {
+      float v = p->get();
+      prefs.putULong(prefs_name, reinterpret_cast<uint32_t&>(v));
+    }
+      
 }
 
 // set single parameter from incoming key, value message.
@@ -347,6 +351,7 @@ void setup()
     Serial.println("LittleFS started.");
 
   prefs.begin("motor");
+
   Serial.println("Prefs started.");
   
   // reading prefs require some order, as params for arrays of structs can only be registered after the size is known.  
@@ -357,6 +362,8 @@ void setup()
   scripts.resize(status.num_scripts+1); // add one empty script, ready to edit
   // re-register and re-read to handle newly added parameters from channels, axes, scripts.
   readAllPrefs();
+
+  //prefs.clear();
 
   for(Channel& c : channels)
     c.init();
@@ -520,6 +527,7 @@ void loop()
     // status.nvs_free = prefs.freeEntries();
     status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
     status.ram_free = esp_get_minimum_free_heap_size();
+    status.nvs_free = prefs.freeEntries();
     status.send_status = 0;
     status.socket_count = ws.count();
     send_status();
