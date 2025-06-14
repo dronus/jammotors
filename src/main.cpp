@@ -124,6 +124,7 @@ struct Status : public Params {
   P_uint32_t (ram_free, false, 0, 0,0 );
   P_uint8_t (socket_count, false, 0, 0,0 );
   P_bool(reset, false, false);
+  P_bool(clear_config, false, false);
   P_end;
 
   bool last_powersave;
@@ -532,8 +533,12 @@ void loop()
     status.socket_count = ws.count();
     send_status();
   }
-  if(status.reset)    
+  if(status.reset)
     ESP.restart();
+  if(status.clear_config) {
+    status.clear_config=false;
+    prefs.clear();
+  }
 
   delay(10);
 }
