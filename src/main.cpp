@@ -494,6 +494,11 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
     for(uint8_t i=0; i<4; i++)
       axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
   }
+  if ( receivedOscMessage.checkOscAddress("/abcd") ) {
+    uint8_t axe_idxs[] = {3,4,5,6}; // x,y,z,a
+    for(uint8_t i=0; i<4; i++)
+      axes[axe_idxs[i]].ik_ext_in = receivedOscMessage.nextAsFloat();
+  }
   if ( receivedOscMessage.checkOscAddress("/script") ) {
     std::string script_name = receivedOscMessage.nextAsString();
     for(Script& script : scripts)
