@@ -8,7 +8,7 @@ struct Axis : public  Params {
   P_float (ik_feedback ,false,0,0, 0);
   P_float (ik_osc_a ,true, -10000,  10000, 0);
   P_float (ik_osc_f ,true,     0, 100, 1);
-  P_float (ik_osc_fb,true,     0,  2, 0);
+  P_float (ik_osc_fb,true,     -2,  2, 0);
   P_float (ik_random_a  ,true, -10000, 10000, 0);
   P_float (ik_random_d  ,true, 0, 60, 0.5f);
   P_float (ik_random_rd ,true, 0, 60, 0.5f);

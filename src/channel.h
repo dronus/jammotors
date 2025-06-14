@@ -8,8 +8,8 @@ struct Channel : public Params {
   P_uint8_t (poweron_en, true,0, 1, 0);
   P_float (speed, true,0, 100000, 10000);
   P_float (accel, true,0, 100000, 10000);
-  P_float (pos_kp, true,0, 500000, 1000);
-  P_float (pos_kd, true,0, 5000, 100);
+  P_float (pos_kp, true,0, 500000, 10);
+  P_float (pos_kd, true,0, 5000, 1);
   P_float (ik_a  ,true,-100000, 100000, 0);
   P_float (pos_min ,true,-100000, 100000, -1000);
   P_float (pos_max ,true,-100000, 100000,  1000);
