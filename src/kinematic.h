@@ -27,18 +27,18 @@ struct KinematicArmCartesian : public Kinematic  {
     
     // define shoulder - target angle
     // define xy-plane origin - shoulder - target triangle
-    float rot = sqrtf(x*x+y*y); // span origin to target in xy-plane
-    if(rot < 5.f) return; // if x and y are too close to zero, just keep last angles.
+    float rot = sqrtf(z*z+y*y); // span origin to target in zy-plane
+    if(rot < 5.f) return; // if z and y are too close to zero, just keep last angles.
     float ros = ik_length_c; // shoulder offset
     if(rot < ros) return; // target to close
     float rst = sqrtf(rot*rot - ros*ros); // offset shoulder to target distance
-    float alpha =  atan2f(x,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
+    float alpha =  atan2f(z,y); // - acosf ((rot*rot + rst*rst - ros*ros) / (2 * rot * rst));
     axes[3].ik_ik_in = 180 * alpha  / (float)pi;
     
     // get elbow angle by triangle cosine equation 
     float a = ik_length_a; // upper arm
     float b = ik_length_b; // lower arm
-    float c = sqrtf(rst*rst + z*z); // span to target
+    float c = sqrtf(rst*rst + x*x); // span to target
     if(c>a+b) return; // point out of reach - arm to short.
     if(b>a+c) return; // point out of reach - lower arm to long.
     if(a>b+c) return; // point out of reach - upper arm to long.
@@ -46,7 +46,7 @@ struct KinematicArmCartesian : public Kinematic  {
      
     // get shoulder angle by triangle cosine equation and atan offset
     if(z==0 && rst==0) return; // point undefined.
-    float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,z);
+    float beta  = acosf ((a*a + c*c - b*b) / (2 * a * c)) - atan2f(rst,x);
     
     axes[4].ik_ik_in = 180 * beta  / (float)pi;
     axes[5].ik_ik_in = 180 * gamma / (float)pi;
@@ -74,12 +74,12 @@ struct KinematicArmCartesian : public Kinematic  {
     float gamma = ( channels[2].position / (float)channels[2].ik_a - axes[5].ik_offset ) / 180 * (float)pi;
     
     float x=0, y=0, z=0;
-    z += ik_length_b;
-    rot(y,z,gamma,y,z);
-    z += ik_length_a;
-    rot(y,z,beta,y,z);
-    x += ik_length_c;
-    rot(y,x,alpha,y,x);
+    x += ik_length_b;
+    rot(y,x,gamma,y,x);
+    x += ik_length_a;
+    rot(y,x,beta,y,x);
+    z += ik_length_c;
+    rot(y,z,alpha,y,z);
 
     axes[0].ik_feedback = x;
     axes[1].ik_feedback = y;
