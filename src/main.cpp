@@ -111,7 +111,6 @@ struct Status : public Params {
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
   P_uint8_t (num_channels,true,1,max_channels,5);
-  P_uint8_t (num_scripts,true,1,max_scripts,1);
   P_string (name, true, "Motor");
   P_string (ssid, true, " "); // crashes with empty default string "" - why ?
   P_string (psk,  true, " "); // crashes with empty default string "" - why ?
@@ -235,13 +234,12 @@ void setFromWs(char* key_value, bool dont_save = false)  {
     setParam(allParams[key], key, value_str, dont_save);
   else
     Serial.printf("Error : setFromWs : parameter %s not found.\n", key);
-  
+
+  // check if a new script need to be added
   if(scripts[scripts.size()-1].script_script != "\n") {
-    status.num_scripts = scripts.size();
-    prefs.putFloat("num_scripts", status.num_scripts);
-    
     scripts.push_back(Script()); // add empty script, ready to edit
-    registerAllParams();
+    uint8_t last_script_i = scripts.size()-1;
+    registerParams(&scripts[last_script_i], last_script_i);
   }
  }
  
@@ -360,11 +358,16 @@ void setup()
   // use just read numbers from status to initialize arrays
   channels.resize(status.num_channels);
   axes.resize(status.num_channels+3);
-  scripts.resize(status.num_scripts+1); // add one empty script, ready to edit
+  // check script count and prepare container of matching size by adding empty scripts for every script stored in prefs
+  for(uint8_t script_count=0; script_count<max_scripts; script_count++){
+    scripts.push_back(Script());
+    // now check if further scripts exists
+    char key_name[18];
+    sprintf(key_name, "script_script_%d",script_count);
+    if(!prefs.isKey(key_name)) break;
+  }
   // re-register and re-read to handle newly added parameters from channels, axes, scripts.
   readAllPrefs();
-
-  //prefs.clear();
 
   for(Channel& c : channels)
     c.init();
