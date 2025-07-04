@@ -69,7 +69,8 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Actual </td><td> <input type=number id=position_0 disabled> </td></tr>
   <tr><td>Reset origin</td><td><button id="reset_zero_0">SET ZERO</button> </td></tr>
   <tr><td>Target </td><td> <input type=number id=target_0 disabled> </td></tr>
-  <tr><td>Torque </td><td> <input type=number id=torque_0 disabled> </td></tr>
+  <tr><td>Torque Actual </td><td> <input type=number id=torque_0 disabled> </td></tr>
+  <tr><td>IK Torque In</td><td> <input type=number id=torque_in_0 disabled> </td></tr>
   <tr><td>Temp </td><td> <input type=number id=temperature_0 disabled> </td></tr>
   <tr><td>Alarm</td><td> <input type=number id=alarm_0 disabled></td></tr>
   <tr><td>Enabled </td><td> <input type=checkbox id=enabled_0> </td></tr>
@@ -79,7 +80,7 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Min. Pos</td><td>  <input type=number id=pos_min_0> </td></tr>
   <tr><td>Max. Pos</td><td>  <input type=number id=pos_max_0> </td></tr>
   <tr><td>Speed </td><td>     <input type=number id=speed_0 > </td></tr>
-  <tr><td>Acc. / Torque </td><td>     <input type=number id=accel_0 > </td></tr>
+  <tr><td>Max. Acc. / Torque </td><td>     <input type=number id=accel_0 > </td></tr>
   <tr><td>Pos kp </td><td>     <input type=number id=pos_kp_0 > </td></tr>
   <tr><td>Pos kd </td><td>     <input type=number id=pos_kd_0 > </td></tr>  
   <tr><td><h3>Misc</h3></td></tr>  
@@ -103,6 +104,7 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Load</td><td>  <input type=number id=load disbled> </td></tr>
   <tr><td>Worst load</td><td>  <input type=number id=load_max disbled> </td></tr>
   <tr><td>OSC in count</td><td>  <input type=number id=osc_in_count disbled> </td></tr>
+  <tr><td>Connection count</td><td>  <input type=number id=socket_count disbled> </td></tr>
   <tr style="display:none"><td>Script delay</td><td><input type=number id=script_delay disabled></td></tr>
   <tr><td>NVS free</td><td>  <input type=number id=nvs_free disbled> </td></tr>
   <tr class="recorder"><td>FS free</td><td>  <input type=number id=fs_free disbled> </td></tr>
@@ -111,6 +113,7 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>Bus Voltage</td><td><input id="vbus" type="number" disabled></td></tr>
   <tr><td>IK Position error </td><td>  <input type=number id=ik_error disbled>  </td></tr>
   <tr style="display:none"><td>send_status</td><td><input id="send_status" type="number"></td></tr>
+  <tr style="display:none"><td>clear_config</td><td><input id="clear_config" type="checkbox"></td></tr>
 </table>
 <table>
   <tr><td><h2>Network</h2> </td></tr>
@@ -134,6 +137,8 @@ canvas {border-radius: 5px; border: 2px solid #444;}
   <tr><td>IK Shoulder Offs. (mm)</td><td>     <input type=number id=ik_length_c > </td></tr>
   <tr><td>IK Upper (mm)</td><td>     <input type=number id=ik_length_a > </td></tr>
   <tr><td>IK Lower (mm)</td><td>     <input type=number id=ik_length_b > </td></tr>
+  <tr><td>IK Upper weight (Nm)</td><td>     <input type=number id=ik_mass_a > </td></tr>
+  <tr><td>IK Lower weight (Nm)</td><td>     <input type=number id=ik_mass_b > </td></tr>
   <tr><td>IK Finger L (mm)</td><td>     <input type=number id=ik_finger_l > </td></tr>
   <tr><td>IK Hand W (mm)</td><td>     <input type=number id=ik_hand_w > </td></tr>
   <tr><td>Max. velocity (mm/s)</td><td>     <input type=number id=ik_vel_max > </td></tr>
