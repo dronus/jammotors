@@ -79,7 +79,7 @@ std::vector<Channel> channels(0);
 const uint8_t max_axes = max_channels + 3;
 std::vector<Axis> axes(0);
 const uint8_t max_scripts = 16;
-std::vector<Script> scripts; 
+std::vector<Script> scripts;
 
 Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   Serial.printf("Create driver %d on pin / CAN id %d\n",driver_id,pin_id);
@@ -236,10 +236,9 @@ void setFromWs(char* key_value, bool dont_save = false)  {
     Serial.printf("Error : setFromWs : parameter %s not found.\n", key);
 
   // check if a new script need to be added
-  if(scripts[scripts.size()-1].script_script != "\n") {
+  if(scripts[scripts.size()-1].s_script != "\n") {
     scripts.push_back(Script()); // add empty script, ready to edit
-    uint8_t last_script_i = scripts.size()-1;
-    registerParams(&scripts[last_script_i], last_script_i);
+    registerAllParams(); // as new script parameters add, and old pointers may be invalidated.
   }
  }
  
@@ -310,7 +309,7 @@ void motionLoop(void* dummy){
 
     status.script_delay -= status.dt;
     for(uint8_t i=0; i<scripts.size(); i++)
-      while(scripts[i].script_running && status.script_delay <= 0)
+      while(scripts[i].s_running && status.script_delay <= 0)
         scripts[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
 
     for(Axis& axis : axes)
@@ -363,7 +362,7 @@ void setup()
     scripts.push_back(Script());
     // now check if further scripts exists
     char key_name[18];
-    sprintf(key_name, "script_script_%d",script_count);
+    sprintf(key_name, "s_script_%d",script_count);
     if(!prefs.isKey(key_name)) break;
   }
   // re-register and re-read to handle newly added parameters from channels, axes, scripts.
@@ -505,8 +504,8 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   if ( receivedOscMessage.checkOscAddress("/script") ) {
     std::string script_name = receivedOscMessage.nextAsString();
     for(Script& script : scripts)
-      if(script.script_name == script_name)
-        script.script_running=1;
+      if(script.s_name == script_name)
+        script.s_running=1;
   }
   if ( receivedOscMessage.checkOscAddress("/set") ) {
     std::string key   = receivedOscMessage.nextAsString();
