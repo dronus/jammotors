@@ -106,7 +106,6 @@ struct Status : public Params {
   P_float (load_max, false, 0, 0, 0);
   P_float (ik_error, false, 0, 0, 0);
   P_uint8_t (send_status,false,0,1,0);
-  P_float (script_delay, false, 0,60000, 1);
   P_float(vbus,false,0,1,0);
   P_float(voltage_divider, true, 0, 64000, 10000);
   P_uint32_t (uptime, false, 0, 0, 0);
@@ -183,6 +182,7 @@ void registerAllParams() {
   registerParams(&status);
   registerParams(&controller);
   if(controller.kinematic) registerParams(controller.kinematic);
+  registerParams(&scriptRuntime);
   registerParams(&recorder);
   registerParams(&midi_picker);
   // per-channel parameters
@@ -307,14 +307,15 @@ void motionLoop(void* dummy){
     if(status.uptime > 5)
       status.dt_max = max(status.dt, status.dt_max);
 
-    status.script_delay -= status.dt;
-    for(uint8_t i=0; i<scripts.size(); i++)
-      while(scripts[i].s_running && status.script_delay <= 0)
-        scripts[i].update([](char* cmd)->void{ setFromWs(cmd, true); });
+    for(Script& script : scripts)
+      if(script.s_running)
+        script.update([](char* cmd)->void{ setFromWs(cmd, true); }, status.dt, status.ik_error);
 
     for(Axis& axis : axes)
       axis.ik_input = 0;
+
     midi_picker.update(axes,status.dt);
+
     status.ik_error = controller.update(status.dt, axes, channels, &readAllPrefs);
     
     for(Channel& c : channels)
