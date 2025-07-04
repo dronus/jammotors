@@ -403,7 +403,7 @@ let open_socket=async function()
     
     show_all(event.data);
     clearTimeout(status_timeout);
-    status_timeout = setTimeout(()=>websocket.send('send_status 1\n'), 50);
+    status_timeout = setTimeout(()=>websocket.send('send_status 1\n'), 100);
   }
 }
 open_socket();

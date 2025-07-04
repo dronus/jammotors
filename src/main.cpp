@@ -513,6 +513,7 @@ void oscMessageParser( MicroOscMessage& receivedOscMessage) {
   }
 }
 
+long last_status_time;
 void loop()
 {
   if(status.powersave != status.last_powersave) {
@@ -529,13 +530,15 @@ void loop()
   
   status.vbus = analogRead(36) / 4096.f * 3.3f * status.voltage_divider;
 
-  if(status.send_status) {
+  long time = millis();
+  if(status.send_status && last_status_time + 100 < time  ) {
     // status.nvs_free = prefs.freeEntries();
     status.fs_free  = LittleFS.totalBytes() - LittleFS.usedBytes();
     status.ram_free = esp_get_minimum_free_heap_size();
     status.nvs_free = prefs.freeEntries();
     status.send_status = 0;
     status.socket_count = ws.count();
+    last_status_time = time;
     send_status();
   }
   if(status.reset)
