@@ -33,12 +33,12 @@ Utilities:
 
 Using platformio:
 
-`pio run -t upload`  # download dependencies, build firmware and upload to ESP32 via USB
-`pio run -t uploadfs`  # upload Web App to flash
+- `pio run -t upload   # download dependencies, build firmware and upload to ESP32 via USB`
+- `pio run -t uploadfs # upload Web App to flash`
 
 When updating to a newer firmware, stored parameters meaning or name may have changed! Check out if everything is working properly for your use case, without motors powered! Symptoms may include massive change in scaling factors, crashes and failure to save parameter changes. In this case, you have to clear out the storage and reconfigure manually. Execute
 
-`pio run -t erase` # completely wipes flash
+- `pio run -t erase # completely wipes flash`
 
 followed by the upload sequence above. You have to re-configure network connection und everything else after that.
 
