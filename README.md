@@ -1,5 +1,5 @@
 
-# NF jammmotors ESP32 motor controller
+# NF jammotors ESP32 motor controller
 
 Controls multiple motors with several protocols remotely or by simple preset motion generators.
 
@@ -9,22 +9,31 @@ Supported motor drivers:
 - RC servo motors ( PPM interface )
 - DC motors, LEDs etc. ( PWM interface )
 - Xiomi CyberGear motors ( CAN bus interface )
+- WiFi OSC output to control further single-channel remote jammotor
 
 Supported input protocols:
 - Web UI ( HTTP / WebSocket interface )
-- OSC ( MIDI CC and MIDI notes over OSC UDP interface )
+- OSC ( MIDI CC and MIDI notes, or coordinates over OSC UDP interface)
 - DMX (ArtNet over UDP interface )
+- OSC output for recording or remote control
 
 Integrated motion control: 
 - oscillatory movement generator
 - random position movement generator
 - inverse kinematic ( fixed configuration for 3 axis arm ) 
+- motion recorder and playback for inverse kinematic
+- simple script engine to switch configuration or execute motion plans
+
+Utilities:
+- Provides mDNS / Bonour / zeroconf / Avahi announcement
+- Automatic fallback to WiFi Hotspot when configured network is missing
+- Firmware updates over WiFi OTA
 
 ## build 
 
 Using platformio:
 
-`pio run -t upload`  # download dependencies, build and upload to ESP32 via USB
+`pio run -t upload`  # download dependencies, build firmware and upload to ESP32 via USB
 `pio run -t uploadfs`  # upload Web App to flash
 
 ## connect hardware
@@ -35,6 +44,8 @@ Connect motor drivers to the following pins:
 - DC motor / LEDs - any pin, configure in Web interface.
 - Xiaomi CyberGear motor - connect CAN interface chip to RX pin 4, TX pin 5. CAN ID configurable as "pin" in Web interface - usual factory setting on motor is 127.
 
+## operation / UI
+- TODO
 
 ## credits
 
