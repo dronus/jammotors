@@ -4,7 +4,7 @@
 struct Channel : public Params {
 
   P_uint8_t (driver_id,true, 0, 0xFF, 0);
-  P_uint8_t (pin_id, true,0, 0xFF, 0);
+  P_uint16_t (pin_id, true,0, 0xFFFF, 0);
   P_uint8_t (poweron_en, true,0, 1, 0);
   P_float (speed, true,0, 100000, 10000);
   P_float (accel, true,0, 100000, 10000);
@@ -22,7 +22,7 @@ struct Channel : public Params {
   P_float (torque_in,false,-100000,100000,0);
   P_float (temperature ,false,0,0,0);
   P_uint8_t (set_can_id ,true,0,255,0);
-  
+  P_string (osc_out_ip,true,"0.0.0.0");
   P_end;
 
   int last_enabled=false;

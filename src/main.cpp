@@ -52,6 +52,7 @@ const float pi = 3.1415926f;
 #include "driver_servo.h"
 #include "driver_pwm.h"
 #include "driver_cybergear.h"
+#include "driver_osc.h"
 #include "midi_picker.h"
 #include "script.h"
 
@@ -87,6 +88,7 @@ Driver* createDriver(uint8_t driver_id, uint8_t pin_id) {
   if(driver_id == 2) return new DriverServo(pin_id);
   if(driver_id == 3) return new DriverPWM(pin_id);
   if(driver_id == 4) return new DriverCybergear(pin_id);
+  if(driver_id == 5) return new DriverOSC(udp);
 
   return NULL;
 }
